@@ -23,7 +23,7 @@ def plot_opt_result(topo: FusedTopo, solver: gp.Model=None, filename: str='./res
     # set capacity as the edge and node labels
     pos = nx.spring_layout(topo.net)
     edge_labels = {
-        (u, v): str(int(d['channels'])) + '-' + str(int(d['length'])) + '-' + '%.2f' % d['prob']
+        (u, v): str(int(d['channels'])) + '-' + str(int(d['length'])) + '-' + '%.2f' % d['capacity']
                                 for u, v, k, d in topo.net.edges(data=True, keys=True)
         }
     node_labels = {node: int(topo.net.nodes[node]['capacity']) for node in topo.net.nodes}
@@ -32,5 +32,6 @@ def plot_opt_result(topo: FusedTopo, solver: gp.Model=None, filename: str='./res
     nx.draw_networkx_labels(topo.net, pos, labels=node_labels)
 
     plt.savefig(filename)
+    plt.close()
 
 

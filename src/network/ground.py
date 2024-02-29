@@ -32,7 +32,7 @@ class GroundNetTopo(Topology):
     def __init__(self, 
             ground_network: GroundNetOpt = GroundNetOpt.IOWA,
             node_capacity: int = 100,
-            edge_base_capacity: int = 100,
+            light_freq = 10 * 1e6, # 10 MHz
             prob_loss_init: float = 0.2,
             prob_loss_length: float = 0.25,
             ) -> None:
@@ -40,7 +40,7 @@ class GroundNetTopo(Topology):
 
         self.ground_network = ground_network
         self.node_capacity = node_capacity
-        self.edge_base_capacity = edge_base_capacity
+        self.light_freq = light_freq
         self.prob_loss_init = prob_loss_init
         self.prob_loss_length = prob_loss_length
 
@@ -63,7 +63,7 @@ class GroundNetTopo(Topology):
             length = geodesic(
                 (self.net.nodes[src]['Latitude'], self.net.nodes[src]['Longitude']),
                 (self.net.nodes[dst]['Latitude'], self.net.nodes[dst]['Longitude'])
-            ).km / 100
+            ).km
             nx.set_edge_attributes(self.net, {(src, dst, key): {'length': length}})
 
     def set_node_capacity(self, capacity: int = 100):
@@ -84,7 +84,8 @@ class GroundNetTopo(Topology):
         for u, v, k, d in edges:
             length = d['length']
             prob_succ = (1 - p_loss_init) * np.power(10, - length * p_loss_length / 10)
-            values[(u, v, k)] = {'prob': prob_succ}
+            capacity = self.light_freq * prob_succ
+            values[(u, v, k)] = {'capacity': capacity}
         nx.set_edge_attributes(self.net, values)
 
 

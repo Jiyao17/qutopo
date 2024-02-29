@@ -24,7 +24,7 @@ def test_topo():
 
 
 def test_solver():
-    grd = GroundNetTopo(GroundNetOpt.GETNET)
+    grd = GroundNetTopo(GroundNetOpt.NOEL)
     gps = ConstellationPosition(ConstellationOpt.GPS)
     topo = FusedTopo(grd, gps)
     task = QuTopoTask(topo, 1)
@@ -32,13 +32,13 @@ def test_solver():
     plot_opt_result(topo, None, filename='./result/fig.png')
 
     solver = LinearSolver(task)
-    solver.optimize()
+    solver.optimize(obj='flow')
     print(solver.model.objVal)
     plot_opt_result(topo, solver, filename='./result/fig.png')
 
 if __name__ == "__main__":
     # test_topo()
-    # test_solver()
-    import numpy as np
-    rate =  10 * 1000000 * np.power(10, - 0.2 * 600 / 10 ) ** 2
-    print(rate)
+    test_solver()
+    # import numpy as np
+    # rate =  10 * 1000000 * np.power(10, - 0.2 * 600 / 10 ) ** 2
+    # print(rate)

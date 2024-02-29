@@ -11,6 +11,7 @@ class QuTopoTask():
     def __init__(self,
             topo: FusedTopo,
             swap_prob: float=0.5,
+            budget: float=1e6,
             demands: dict=None,
             vertex_prices: dict=None,
             edge_prices: dict=None,
@@ -18,14 +19,15 @@ class QuTopoTask():
 
         self.topo = topo
         self.swap_prob = swap_prob
+        self.budget = budget
         self.pairs = self.get_pairs()
         
         if demands is None:
-            demands = {pair: 1 for pair in self.pairs[1:2]}
+            demands = {pair: 1 for pair in self.pairs}
         self.demands = demands
 
         if vertex_prices is None:
-            vertex_prices = {node: 100 for node in self.topo.net.nodes}
+            vertex_prices = {node: 10 for node in self.topo.net.nodes}
         self.vertex_prices = vertex_prices
 
         if edge_prices is None:
