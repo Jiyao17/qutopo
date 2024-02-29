@@ -1,7 +1,9 @@
 
-from ..network import *
 import networkx as nx
 import gurobipy as gp
+import numpy as np
+
+from ..network import *
 
 
 class QuTopoTask():
@@ -19,15 +21,18 @@ class QuTopoTask():
         self.pairs = self.get_pairs()
         
         if demands is None:
-            demands = {pair: 3 for pair in self.pairs}
+            demands = {pair: 1 for pair in self.pairs[1:2]}
         self.demands = demands
 
         if vertex_prices is None:
-            vertex_prices = {node: 10 for node in self.topo.net.nodes}
+            vertex_prices = {node: 100 for node in self.topo.net.nodes}
         self.vertex_prices = vertex_prices
 
         if edge_prices is None:
-            edge_prices = {edge: 1 for edge in self.topo.net.edges}
+            edge_prices = {
+                (u, v, k) : l
+                for u, v, k, l in self.topo.net.edges(data='length', keys=True)
+                }
         self.edge_price = edge_prices
 
     def get_pairs(self):

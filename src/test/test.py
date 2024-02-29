@@ -8,6 +8,8 @@ from ..network import *
 from ..optimizer.task import QuTopoTask
 from ..optimizer.solver import LinearSolver
 
+from ..utils.plot import plot_opt_result
+
 def test_topo():
     att = GroundNetTopo(GroundNetOpt.ATT)
     gps = ConstellationPosition(ConstellationOpt.GPS)
@@ -26,31 +28,17 @@ def test_solver():
     gps = ConstellationPosition(ConstellationOpt.GPS)
     topo = FusedTopo(grd, gps)
     task = QuTopoTask(topo, 1)
+
+    plot_opt_result(topo, None, filename='./result/fig.png')
+
     solver = LinearSolver(task)
-    solver.export_task()
     solver.optimize()
     print(solver.model.objVal)
-
-    # set edge capacity to optimization result
-    for edge in topo.net.edges:
-        topo.net.edges[edge]['capacity'] = solver.c[edge].x
-    # set node capacity to optimization result
-    for node in topo.net.nodes:
-        topo.net.nodes[node]['capacity'] = solver.m[node].x
-    # draw the multigraph, save the result to a file
-    # set capacity as the edge and node labels
-    pos = nx.spring_layout(topo.net)
-    edge_labels = {(edge[0], edge[1]): int(topo.net.edges[edge]['capacity']) for edge in topo.net.edges}
-    node_labels = {node: int(topo.net.nodes[node]['capacity']) for node in topo.net.nodes}
-    nx.draw(topo.net, pos, with_labels=False, node_color='lightblue', node_size=500, edge_color='grey', width=1, edge_cmap=plt.cm.Blues)
-    nx.draw_networkx_edge_labels(topo.net, pos, edge_labels=edge_labels)
-    nx.draw_networkx_labels(topo.net, pos, labels=node_labels)
-
-
-    plt.savefig('test.png')
-
-
+    plot_opt_result(topo, solver, filename='./result/fig.png')
 
 if __name__ == "__main__":
     # test_topo()
-    test_solver()
+    # test_solver()
+    import numpy as np
+    rate =  10 * 1000000 * np.power(10, - 0.2 * 600 / 10 ) ** 2
+    print(rate)

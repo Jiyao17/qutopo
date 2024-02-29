@@ -10,9 +10,12 @@ class LinearSolver():
     """
     solve the linear optimization problem
     """
-    def __init__(self, task: QuTopoTask) -> None:
+    def __init__(self, task: QuTopoTask, var_type=gp.GRB.CONTINUOUS) -> None:
         self.task = task
+        self.var_type = var_type
         self.model = gp.Model("QuTopo")
+
+        self.export_task()
 
     def add_variables(self):
         """
@@ -72,7 +75,8 @@ class LinearSolver():
             # entanglement generation
             edge_num = self.task.topo.net.number_of_edges(i, j)
             for key in range(edge_num):
-                self.I[in_pair] += self.c[(i, j, key)]
+                prob = self.task.topo.net[i][j][key]['prob']
+                self.I[in_pair] += self.c[(i, j, key)] * prob
             
             # in-flows from other pairs
             for v in self.task.topo.net.nodes:
@@ -104,12 +108,18 @@ class LinearSolver():
                 self.I[pair] - self.O[pair] >= self.task.demands[pair]
             )
 
-    def add_resource_constr(self):
+    def add_resource_constr(self, channel_mem: bool=True):
         m = {node: 0 for node in self.task.topo.net.nodes}
-        for pair in self.task.pairs:
-            i, j = pair
-            m[i] += self.I[pair]
-            m[j] += self.I[pair]
+        for edge in self.task.topo.net.edges:
+            i, j, k = edge
+            if channel_mem:
+                # one memory cell per channel
+                prob = 1
+            else:
+                # shared memory among channels
+                prob = self.task.topo.net[i][j][k]['prob']
+            m[i] += self.c[edge] * prob
+            m[j] += self.c[edge] * prob
 
         for node in self.task.topo.net.nodes:
             self.model.addConstr(
@@ -148,10 +158,10 @@ class LinearSolver():
 
 
 if __name__ == "__main__":
-    att = GroundNetTopo(GroundNetOpt.ATT)
+    att = GroundNetTopo(GroundNetOpt.GETNET)
     gps = ConstellationPosition(ConstellationOpt.GPS)
     topo = FusedTopo(att, gps)
     task = QuTopoTask(topo, 1)
-
-
     solver = LinearSolver(task)
+    solver.optimize()
+    print(solver.model.objVal)
