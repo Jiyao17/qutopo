@@ -27,7 +27,7 @@ class QuTopoTask():
         self.demands = demands
 
         if vertex_prices is None:
-            vertex_prices = {node: 10 for node in self.topo.net.nodes}
+            vertex_prices = {node: 100 for node in self.topo.net.nodes}
         self.vertex_prices = vertex_prices
 
         if edge_prices is None:

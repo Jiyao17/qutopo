@@ -10,17 +10,19 @@ import numpy as np
 from .topology import Topology
 
 class GroundNetOpt(enum.Enum):
+    TEST = 0
     ATT = 1
     GETNET = 2
-    IOWA = 3
+    # IOWA = 3
     IRIS = 4
     NOEL = 5
 
 
 GROUND_FILENAME = {
+    GroundNetOpt.TEST: 'ground/test.graphml',
     GroundNetOpt.ATT: 'ground/ATT.graphml',
     GroundNetOpt.GETNET: 'ground/Getnet.graphml',
-    GroundNetOpt.IOWA: 'ground/IowaStatewideFiberMap.graphml',
+    # GroundNetOpt.IOWA: 'ground/IowaStatewideFiberMap.graphml',
     GroundNetOpt.IRIS: 'ground/Iris.graphml',
     GroundNetOpt.NOEL: 'ground/Noel.graphml',
 }
@@ -30,7 +32,7 @@ GROUND_FILENAME = {
 class GroundNetTopo(Topology):
 
     def __init__(self, 
-            ground_network: GroundNetOpt = GroundNetOpt.IOWA,
+            ground_network: GroundNetOpt = GroundNetOpt.ATT,
             node_capacity: int = 100,
             light_freq = 10 * 1e6, # 10 MHz
             prob_loss_init: float = 0.2,

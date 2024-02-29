@@ -99,7 +99,7 @@ class LinearSolver():
         for pair in self.task.pairs:
             self.model.addConstr(self.I[pair] >= self.O[pair])
 
-        # demand constraint
+        # flow conservation
         self.flow_conserv = {}
         for pair in self.task.pairs:
             self.flow_conserv[pair] = self.I[pair] - self.O[pair]
@@ -158,7 +158,7 @@ class LinearSolver():
         elif obj == 'flow':
             # add budget constraints, set the objective to maximize the flow
             self.model.addConstr(self.budget <= self.task.budget)
-            flow = gp.quicksum(self.flow_conserv.values())
+            flow = gp.quicksum([self.flow_conserv[pair] for pair in self.task.demands])
             self.model.setObjective(flow, gp.GRB.MAXIMIZE)
 
         self.model.optimize()
