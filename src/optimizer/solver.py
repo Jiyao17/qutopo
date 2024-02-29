@@ -37,6 +37,13 @@ class LinearSolver():
                 name=f'c_{edge}'
                 )
             self.model.addConstr(self.c[edge] >= 0)
+        # add edge capacity variables
+        self.C = {}
+        for edge in self.task.topo.net.edges:
+            self.C[edge] = self.model.addVar(
+                vtype=var_type,
+                name=f'C_{edge}'
+                )
             
         pairs = self.task.pairs
         self.f = {}
@@ -74,8 +81,7 @@ class LinearSolver():
             # entanglement generation
             edge_num = self.task.topo.net.number_of_edges(i, j)
             for key in range(edge_num):
-                capacity = self.task.topo.net[i][j][key]['capacity']
-                self.I[in_pair] += self.c[(i, j, key)] * capacity
+                self.I[in_pair] += self.C[(i, j, key)] 
             
             # in-flows from other pairs
             for v in self.task.topo.net.nodes:
@@ -83,7 +89,7 @@ class LinearSolver():
                     out_pair1 = (i, v) if (i, v) in self.task.pairs else (v, i)
                     out_pair2 = (v, j) if (v, j) in self.task.pairs else (j, v)
                     self.I[in_pair] += swap_prob * 0.5 * (self.f[(out_pair1, in_pair)] + self.f[(out_pair2, in_pair)])
-    
+
         # equal contribution to swap
         for in_pair in self.task.pairs:
             i, j = in_pair
@@ -104,22 +110,23 @@ class LinearSolver():
         for pair in self.task.pairs:
             self.flow_conserv[pair] = self.I[pair] - self.O[pair]
 
-    def add_resource_constr(self, channel_mem: bool=True):
+    def add_resource_constr(self):
         m = {node: 0 for node in self.task.topo.net.nodes}
         for edge in self.task.topo.net.edges:
             i, j, k = edge
-            if channel_mem:
-                # one memory cell per channel
-                mem_ratio = 1
-            else:
-                # shared memory among channels
-                mem_ratio = self.task.topo.net[i][j][k]['capacity']
-            m[i] += self.c[edge] * mem_ratio
-            m[j] += self.c[edge] * mem_ratio
+            m[i] += self.C[edge]
+            m[j] += self.C[edge]
 
         for node in self.task.topo.net.nodes:
             self.model.addConstr(
                 self.m[node] >= m[node]
+            )
+
+        for edge in self.task.topo.net.edges:
+            i, j, k = edge
+            capacity = self.task.topo.net[i][j][k]['cap_per_channel']
+            self.model.addConstr(
+                self.C[edge] <= self.c[edge] * capacity
             )
 
     def add_budget_def(self):

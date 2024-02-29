@@ -65,7 +65,7 @@ class GroundNetTopo(Topology):
             length = geodesic(
                 (self.net.nodes[src]['Latitude'], self.net.nodes[src]['Longitude']),
                 (self.net.nodes[dst]['Latitude'], self.net.nodes[dst]['Longitude'])
-            ).km
+            ).km / 100
             nx.set_edge_attributes(self.net, {(src, dst, key): {'length': length}})
 
     def set_node_capacity(self, capacity: int = 100):
@@ -87,7 +87,7 @@ class GroundNetTopo(Topology):
             length = d['length']
             prob_succ = (1 - p_loss_init) * np.power(10, - length * p_loss_length / 10)
             capacity = self.light_freq * prob_succ
-            values[(u, v, k)] = {'capacity': capacity}
+            values[(u, v, k)] = {'cap_per_channel': capacity}
         nx.set_edge_attributes(self.net, values)
 
 
