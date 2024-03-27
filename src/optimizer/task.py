@@ -3,29 +3,25 @@ import networkx as nx
 import gurobipy as gp
 import numpy as np
 
-from src.network import FusedTopo
-
-from ..network import *
+from ..network import Network
 
 
-class _QuTopoTask():
+class _Task():
 
     def __init__(self,
-            topo: FusedTopo,
+            network: Network,
             swap_prob: float=0.5,
         ) -> None:
 
-        self.topo = topo
+        self.network = network
         self.swap_prob = swap_prob
 
-        self.G = topo.net
-        self.V = topo.net.nodes
-        self.E = topo.net.edges
+        self.G = network.G
+        self.V = network.G.nodes
+        self.E = network.G.edges
 
         self.pairs = self.get_pairs(list(set(self.V)))
         
-
-
     def get_pairs(self, nodes: list):
         """
         get all pairs of nodes in the network
@@ -40,38 +36,31 @@ class _QuTopoTask():
         return pairs
 
 
-class QuTopoConstruction(_QuTopoTask):
+class NetworkConstruction(_Task):
     def __init__(self, 
-            topo: FusedTopo,
+            network: Network,
             swap_prob: float = 0.5,
-            fiber_price: float = 1,
+            fiber_price_km: float = 1,
+            fiber_price_install: float = 1e3,
             memory_price: float = 1,
+            memory_price_install: float = 1e3,
             ) -> None:
-        super().__init__(topo, swap_prob)
+        super().__init__(network, swap_prob)
 
         self.demands = { pair: 1 for pair in self.pairs }
         self.memory_price = { node: memory_price for node in self.V }
-        self.edge_price = { 
-            (u, v, k) : l * fiber_price
+        self.memory_price_install = { node: memory_price_install for node in self.V }
+        self.fiber_price_km = {
+            (u, v, k) : l * fiber_price_km
                 for u, v, k, l in self.E(data='length', keys=True)
         }
-
-class QuTopoRental(_QuTopoTask):
-    def __init__(self, 
-            topo: FusedTopo,
-            swap_prob: float = 0.5,
-            fiber_price: dict = None,
-            memory_price: dict = None,
-            ) -> None:
-        super().__init__(topo, swap_prob)
-
-        self.demands = { pair: 1 for pair in self.pairs }
-        self.memory_price = { node: memory_price for node in self.V }
-        self.edge_price = { 
-            (u, v, k) : l * fiber_price
-                for u, v, k, l in self.E(data='length', keys=True)
+        self.fiber_price_install = {
+            (u, v, k) : fiber_price_install
+                for u, v, k in self.E(keys=True)
         }
 
 
-class QuTopoEnhancement(_QuTopoTask):
-    pass
+if __name__ == '__main__':
+    net = Network()
+    task = NetworkConstruction(net)
+    print(task.V)

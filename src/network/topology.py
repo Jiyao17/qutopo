@@ -24,6 +24,7 @@ class Network():
             light_freq = 10 * 1e6, # 10 MHz
             prob_loss_init: float = 0.2,
             prob_loss_length: float = 0.25,
+            scale_factor: float = 1
             ) -> None:
         super().__init__()
 
@@ -31,6 +32,7 @@ class Network():
         self.light_freq = light_freq
         self.prob_loss_init = prob_loss_init
         self.prob_loss_length = prob_loss_length
+        self.scale_factor = scale_factor
 
         # read the ground network from the graphml file
         filename = topology.value
@@ -38,6 +40,7 @@ class Network():
         self.G: nx.MultiGraph = nx.read_graphml(path, force_multigraph=True)
 
         self.set_edge_length()
+        self.scale(scale_factor)
         self.set_node_capacity(0)
         self.set_channel_capacity(prob_loss_init, prob_loss_length)
 
@@ -79,13 +82,13 @@ class Network():
         scale the edges in the network by a factor
         """
         # set new edge length
-        for edge in self.G.edges(data=True):
-            src, dst = edge[:2]
-            new_length = self.G[src][dst]['length'] * scale_factor
-            self.G[src][dst]['length'] = new_length
+        new_length = {}
+        for src, dst, key, length in self.G.edges(keys=True, data='length'):
+            new_length[(src, dst, key)] = {'length': length * scale_factor}
+        nx.set_edge_attributes(self.G, new_length)
 
-        # update edge capacity
-        self.set_channel_capacity(self.prob_loss_init, self.prob_loss_length)    
+        # # update edge capacity
+        # self.set_channel_capacity(self.prob_loss_init, self.prob_loss_length)    
 
 
 if __name__ == '__main__':
