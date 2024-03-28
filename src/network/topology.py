@@ -38,11 +38,21 @@ class Network():
         filename = topology.value
         path = os.path.join(os.path.dirname(__file__), filename)
         self.G: nx.MultiGraph = nx.read_graphml(path, force_multigraph=True)
+        self.mark_initial_nodes()
 
         self.set_edge_length()
         self.scale(scale_factor)
         self.set_node_capacity(0)
         self.set_channel_capacity(prob_loss_init, prob_loss_length)
+
+    def mark_initial_nodes(self):
+        """
+        mark the initial nodes in the network
+        """
+        marks = {}
+        for node in self.G.nodes(data=False):
+            marks[node] = {'initial': 1}
+        nx.set_node_attributes(self.G, marks)
 
     def set_edge_length(self):
         """
