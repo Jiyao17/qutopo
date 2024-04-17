@@ -41,7 +41,7 @@ class Network():
         self.mark_initial_nodes()
 
         self.set_edge_length()
-        self.scale(scale_factor)
+        self._scale(scale_factor)
         self.set_node_capacity(0)
         self.set_channel_capacity(prob_loss_init, prob_loss_length)
 
@@ -66,7 +66,7 @@ class Network():
             ).km
             nx.set_edge_attributes(self.G, {(src, dst, key): {'length': length}})
 
-    def set_node_capacity(self, capacity: int = 100):
+    def set_node_capacity(self, capacity: int = 0):
         """
         set the capacity of each node in the network
         """
@@ -87,7 +87,7 @@ class Network():
             values[(u, v, k)] = {'cap_per_channel': capacity}
         nx.set_edge_attributes(self.G, values)
 
-    def scale(self, scale_factor: float):
+    def _scale(self, scale_factor: float):
         """
         scale the edges in the network by a factor
         """
@@ -99,6 +99,34 @@ class Network():
 
         # # update edge capacity
         # self.set_channel_capacity(self.prob_loss_init, self.prob_loss_length)    
+
+    def edge_segmentation(self, num_segments: int):
+        """
+        segment the edges in the network
+        """
+        for src, dst, key, length in self.G.edges(keys=True, data='length'):
+            for i in range(num_segments):
+                new_src = f'{src}_{i}'
+                new_dst = f'{dst}_{i}'
+                self.G.add_edge(new_src, new_dst, length=length/num_segments)
+
+        self.set_node_capacity(0)
+        self.set_channel_capacity(self.prob_loss_init, self.prob_loss_length)
+
+    def make_clique(self):
+        """
+        make the network a clique
+        """
+        for node in self.G.nodes(data=False):
+            for other in self.G.nodes(data=False):
+                if node != other and not self.G.has_edge(node, other):
+                    self.G.add_edge(node, other)
+        
+        self.set_edge_length()
+        self._scale(self.scale_factor)
+        self.set_node_capacity(0)
+        self.set_channel_capacity(self.prob_loss_init, self.prob_loss_length)
+
 
 
 if __name__ == '__main__':

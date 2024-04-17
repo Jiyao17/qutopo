@@ -26,7 +26,7 @@ class _Task():
         """
         get all pairs of nodes in the network
         """
-        pairs = []
+        pairs: 'list[tuple[str, str]]' = []
         for src in nodes:
             for dst in nodes:
                 if src != dst and (dst, src) not in pairs:
@@ -47,7 +47,7 @@ class NetworkConstruction(_Task):
             ) -> None:
         super().__init__(network, swap_prob)
 
-        self.demands = { pair: 1 for pair in self.pairs }
+        self.demands = { pair: 10 for pair in self.pairs }
         self.memory_price = { node: memory_price for node in self.V }
         self.memory_price_install = { node: memory_price_install for node in self.V }
         self.fiber_price_km = {

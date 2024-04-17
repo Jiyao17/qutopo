@@ -9,74 +9,111 @@ class LinearSolver():
     """
     solve the linear optimization problem
     """
-    def __init__(self, task: NetworkConstruction) -> None:
+    def __init__(self, task: NetworkConstruction, relaxed: bool=False) -> None:
+        """
+        if relaxed, all variables are continuous, and installation costs are not considered
+        """
         self.task = task
+        self.relaxed = relaxed
+
         self.model = gp.Model("NetworkConstruction")
+        self.build(relaxed)
 
+    def build(self, relaxed: bool=False):
+        """
+        build the linear model
+        """
+        self.add_variables(relaxed)
+        self.add_distribution_constr()
+        self.add_resource_constr()
+        self.add_budget_def()
 
-    def add_variables(self):
+    def add_variables(self, relaxed: bool=False):
         """
         add m, c, and f variables to the model
-        """    
+        """
+        device_num_type = gp.GRB.INTEGER if not relaxed else gp.GRB.CONTINUOUS
+
         # add node memory variables
         self.m = {}
         # indicator variable for memory usage
         # 1 if memory is used, 0 otherwise
         self.Im = {} 
-        max_mem = 1e6
+        max_mem = 1e4
         for node in self.task.V:
             self.m[node] = self.model.addVar(
-                vtype=gp.GRB.INTEGER,
+                vtype=device_num_type,
                 name=f'm_{node}'
                 )
-            self.Im[node] = self.model.addVar(
-                vtype=gp.GRB.BINARY,
-                name=f'Im_{node}'
-                )
             self.model.addConstr(self.m[node] >= 0)
+
+            if not relaxed:
+                self.Im[node] = self.model.addVar(
+                    vtype=gp.GRB.BINARY,
+                    name=f'Im_{node}'
+                    )
             # make Im the indicator variable
             # Im = 1 if m > 0, 0 otherwise
-            self.model.addConstr(self.m[node] >= self.Im[node])
-            self.model.addConstr(self.m[node] <= max_mem * self.Im[node])
+            if not relaxed:
+                self.model.addConstr(self.m[node] >= self.Im[node])
+                self.model.addConstr(self.m[node] <= max_mem * self.Im[node])
          
         # add edge channel variables
         self.c = {}
         self.If = {}
-        max_channel = 1e6
+        max_channel = 1e2
         for edge in self.task.E(keys=True):
             self.c[edge] = self.model.addVar(
-                vtype=gp.GRB.INTEGER,
+                vtype=device_num_type,
                 name=f'c_{edge}'
                 )
-            self.If[edge] = self.model.addVar(
-                vtype=gp.GRB.BINARY,
-                name=f'Ic_{edge}'
-                )
             self.model.addConstr(self.c[edge] >= 0)
+
+            if not relaxed:
+                self.If[edge] = self.model.addVar(
+                    vtype=gp.GRB.BINARY,
+                    name=f'Ic_{edge}'
+                    )
             # make Ic the indicator variable
             # Ic = 1 if c > 0, 0 otherwise
-            self.model.addConstr(self.c[edge] <= max_channel * self.If[edge])
-            self.model.addConstr(self.c[edge] >= self.If[edge])
+            if not relaxed:
+                self.model.addConstr(self.c[edge] <= max_channel * self.If[edge])
+                self.model.addConstr(self.c[edge] >= self.If[edge])
         # add edge capacity variables
-        self.C = {} # \phi in the paper
+        self.phi = {} # \phi in the paper
         for edge in self.task.E(keys=True):
-            self.C[edge] = self.model.addVar(
+            self.phi[edge] = self.model.addVar(
                 vtype=gp.GRB.CONTINUOUS,
                 name=f'C_{edge}'
                 )
-            self.model.addConstr(self.C[edge] >= 0)
+            self.model.addConstr(self.phi[edge] >= 0)
             
         pairs = self.task.pairs
         self.f = {}
         # add flow variables
         for out_pair in pairs:
-            for in_pair in pairs:
-                if out_pair != in_pair:
+            for  v in self.task.V:
+                if v not in out_pair:
+                    # (i, v) -> (i, j)
+                    in_pair = (out_pair[0], v) if (out_pair[0], v) in pairs else (v, out_pair[0])
                     self.f[(out_pair, in_pair)] = self.model.addVar(
                         vtype=gp.GRB.CONTINUOUS,
                         name=f'f_{out_pair}_{in_pair}'
                         )
                     self.model.addConstr(self.f[(out_pair, in_pair)] >= 0)
+                    # (v, j) -> (i, j)
+                    in_pair = (v, out_pair[1]) if (v, out_pair[1]) in pairs else (out_pair[1], v)
+                    self.f[(out_pair, in_pair)] = self.model.addVar(
+                        vtype=gp.GRB.CONTINUOUS,
+                        name=f'f_{out_pair}_{in_pair}'
+                        )
+            # for in_pair in pairs:
+            #     if out_pair != in_pair:
+            #         self.f[(out_pair, in_pair)] = self.model.addVar(
+            #             vtype=gp.GRB.CONTINUOUS,
+            #             name=f'f_{out_pair}_{in_pair}'
+            #             )
+            #         self.model.addConstr(self.f[(out_pair, in_pair)] >= 0)
 
     def add_distribution_constr(self):
         """
@@ -102,7 +139,7 @@ class LinearSolver():
             # entanglement generation
             edge_num = self.task.G.number_of_edges(i, j)
             for key in range(edge_num):
-                self.I[in_pair] += self.C[(i, j, key)] if (i, j, key) in self.C else self.C[(j, i, key)]
+                self.I[in_pair] += self.phi[(i, j, key)] if (i, j, key) in self.phi else self.phi[(j, i, key)]
             
             # in-flows from other pairs
             for v in self.task.V:
@@ -131,13 +168,17 @@ class LinearSolver():
         for pair in self.task.pairs:
             self.flow_conserv[pair] = self.I[pair] - self.O[pair]
 
+        # add flow constraints
+        for pair, demand in self.task.demands.items():
+            self.model.addConstr(self.flow_conserv[pair] >= demand)
+
     def add_resource_constr(self):
         # memory usage constraint
         m = {node: 0 for node in self.task.V}
         for edge in self.task.E(keys=True):
             i, j, k = edge
-            m[i] += self.C[edge]
-            m[j] += self.C[edge]
+            m[i] += self.phi[edge]
+            m[j] += self.phi[edge]
 
         for node in self.task.V:
             self.model.addConstr(
@@ -147,7 +188,7 @@ class LinearSolver():
         for edge in self.task.E(keys=True):
             cap = self.task.E[edge]['cap_per_channel']
             self.model.addConstr(
-                self.C[edge] <= self.c[edge] * cap
+                self.phi[edge] <= self.c[edge] * cap
             )
 
     def add_budget_def(self):
@@ -158,38 +199,32 @@ class LinearSolver():
         self.pv = {}
         for node in self.task.V:
             self.pv[node] = self.task.memory_price[node] * self.m[node]
-            self.pv[node] += self.task.memory_price_install[node] * self.Im[node]
+            if not self.relaxed:
+                self.pv[node] += self.task.memory_price_install[node] * self.Im[node]
         # edge budget
         self.pe = {}
         for edge in self.task.E(keys=True):
             self.pe[edge] = self.task.fiber_price_km[edge] * self.c[edge]
-            self.pe[edge] += self.task.fiber_price_install[edge] * self.If[edge]
+            if not self.relaxed:
+                self.pe[edge] += self.task.fiber_price_install[edge] * self.If[edge]
 
         self.budget = gp.quicksum(self.pv.values()) + gp.quicksum(self.pe.values())
 
     def optimize(self):
         """
-        optimize the linear model
+        optimize the model
         """
-
-        self.add_variables()
-        self.add_distribution_constr()
-        self.add_resource_constr()
-        self.add_budget_def()
-
-        # add flow constraints, set the objective to minimize the budget
-        for pair, demand in self.task.demands.items():
-            self.model.addConstr(self.flow_conserv[pair] >= demand)
         self.model.setObjective(self.budget, gp.GRB.MINIMIZE)
 
         self.model.optimize()
 
 
 if __name__ == "__main__":
-    topology = Topology.GETNET
-    network = Network(topology, scale_factor=0.1)
+    topology = Topology.NOEL
+    network = Network(topology, scale_factor=1)
+    network.make_clique()
     task = NetworkConstruction(network)
-    solver = LinearSolver(task)
+    solver = LinearSolver(task, relaxed=True)
 
     solver.optimize()
     print("Objective value: ", solver.model.objVal)

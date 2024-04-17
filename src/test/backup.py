@@ -14,6 +14,6 @@ print("Speed of light in space: %.2f km/s" % space_delay_model.c)
 
 from netsquid.components.models.qerrormodels import FibreLossModel
 from netsquid.components.qchannel import QuantumChannel
-loss_model = FibreLossModel(p_loss_init=0.2, p_loss_length=0.25)
+loss_model = FibreLossModel(p_loss_init=0.2, p_loss_length=0.20)
 qchannel = QuantumChannel("MyQChannel", length=20, models={'quantum_loss_model': loss_model})
 
