@@ -2,7 +2,7 @@
 import networkx as nx
 import gurobipy as gp
 
-from ..network import Topology, Network
+from ..task import Topology, Network
 from .task import NetworkConstruction
 
 class LinearSolver():

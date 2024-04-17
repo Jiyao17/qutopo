@@ -1,5 +1,5 @@
 
-from ..network import GroundNetwork, GroundTopology
+from ..task import GroundNetwork, GroundTopology
 import networkx as nx
 
 

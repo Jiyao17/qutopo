@@ -4,7 +4,7 @@ import networkx as nx
 import gurobipy as gp
 import matplotlib.pyplot as plt
 
-from ..network import *
+from ..task import *
 from ..optimizer.task import QuTopoTask
 from ..optimizer.solver import LinearSolver
 

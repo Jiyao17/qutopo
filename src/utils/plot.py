@@ -3,10 +3,9 @@ import networkx as nx
 import gurobipy as gp
 import matplotlib.pyplot as plt
 
-from ..network import FusedTopo
 
 
-def plot_opt_result(topo: FusedTopo, solver: gp.Model=None, filename: str='./result/fig.png'):
+def plot_opt_result(topo, solver: gp.Model=None, filename: str='./result/fig.png'):
     # set edge channel number to optimization result
     for edge in topo.net.edges:
         if solver is not None:
@@ -34,4 +33,33 @@ def plot_opt_result(topo: FusedTopo, solver: gp.Model=None, filename: str='./res
     plt.savefig(filename)
     plt.close()
 
+
+def plot_nx_graph(
+        graph: nx.Graph,
+        labeled_edges: bool=False,
+        filename: str='./result/fig.png'
+        ):
+    """
+    plot the network
+    """
+    pos = nx.spring_layout(graph)
+    # length as edge labels, if exists
+    if labeled_edges and graph.number_of_edges() > 0:
+        edge_data: dict = list(graph.edges(data=True))[0][2]
+        if 'length' in edge_data:
+            edge_labels: dict = nx.get_edge_attributes(graph, 'length')
+            #round the length to 2 decimal places
+            edge_labels = {key: '%.2f' % value for key, value in edge_labels.items()}
+    else:
+        edge_labels = None
+    nx.draw(
+        graph, pos, with_labels=False, 
+        node_color='lightblue', node_size=200, 
+        edge_color='grey', width=1, edge_cmap=plt.cm.Blues
+        )
+    if edge_labels is not None:
+        nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
+    
+    plt.savefig(filename)
+    plt.close()
 
