@@ -8,7 +8,9 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "src.optimizer.solver",
+            // "module": "src.network.network",
+            "module": "src.solver.lp",
+
         }
     ]
 }

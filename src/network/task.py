@@ -3,7 +3,7 @@ import networkx as nx
 import gurobipy as gp
 import numpy as np
 
-from .topology import VertexSet
+from .vertex import VertexSet
 
 
 class Task():
@@ -18,10 +18,10 @@ class Task():
         self.demading_fraction = demanding_fraction
         self.demand_range = demand_range
 
-        self.V = vset.V
+        self.U = vset.vertices
         self.D = {}
         
-        self.pairs = self.get_pairs(self.V.keys())
+        self.pairs = self.get_pairs(self.U.keys())
         dpair_num = int(len(self.pairs) * demanding_fraction)
         indices = np.arange(len(self.pairs))
         dpairs_indices = np.random.choice(indices, dpair_num, replace=False)
@@ -47,5 +47,5 @@ class Task():
 if __name__ == '__main__':
 
     task = Task()
-    print(task.V)
+    print(task.U)
     print(task.D)

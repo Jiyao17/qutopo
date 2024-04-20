@@ -4,11 +4,8 @@ import networkx as nx
 import gurobipy as gp
 import matplotlib.pyplot as plt
 
-from ..task import *
-from ..optimizer.task import QuTopoTask
-from ..optimizer.solver import LinearSolver
 
-from ..utils.plot import plot_opt_result
+from ..utils.plot import plot_optimized_network
 
 def test_topo():
     att = GroundNetTopo(GroundNetOpt.ATT)
@@ -38,7 +35,13 @@ def test_solver():
 
 if __name__ == "__main__":
     # test_topo()
-    test_solver()
-    # import numpy as np
-    # rate =  10 * 1000000 * np.power(10, - 0.2 * 600 / 10 ) ** 2
+    # test_solver()
+    import numpy as np
+    loss = 0.2
+    length = 243
+    base = 1e4
+    prob = 10 ** (-0.1 * loss * (length*0.5))
+    # base = 1 / prob ** 2
+    rate = base * prob**2
+    print(prob, base, rate)
     # print(rate)

@@ -6,7 +6,7 @@ import enum
 import networkx as nx
 
 
-class Topology(enum.Enum):
+class VertexSource(enum.Enum):
     TEST = 'topology/test.graphml'
     ATT = 'topology/ATT.graphml'
     GETNET = 'topology/Getnet.graphml'
@@ -18,24 +18,24 @@ class Topology(enum.Enum):
 class VertexSet():
 
     def __init__(self, 
-            topology: Topology = Topology.ATT,
+            vsrc: VertexSource = VertexSource.ATT,
             ) -> None:
         super().__init__()
 
-        self.topology = topology
+        self.vsrc = vsrc
 
         # vertices with latitude and longitude
         # dict[str, Tuple[float, float]], {id: (latitude, longitude)}
-        self.V = {}
+        self.vertices = {}
         # read the ground network from the graphml file
-        filename = topology.value
+        filename = vsrc.value
         path = os.path.join(os.path.dirname(__file__), filename)
         self.G: nx.MultiGraph = nx.read_graphml(path, force_multigraph=True)
         # extract
         for node in self.G.nodes(data=True):
             id = node[0]
-            latitude, longitude = node[1]['Latitude'], node[1]['Longitude']
-            self.V[id] = (latitude, longitude)
+            lon, lat = node[1]['Longitude'], node[1]['Latitude']
+            self.vertices[id] = (lon, lat)
 
 
 
@@ -47,4 +47,4 @@ if __name__ == '__main__':
     # print(net.G.edges(data='length', keys=True))
 
     vset = VertexSet()
-    print(vset.V)
+    print(vset.vertices)
