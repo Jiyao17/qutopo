@@ -14,19 +14,23 @@ def plot_optimized_network(graph: nx.Graph, m=None, c=None, filename: str='./res
     # if edge channel > 0, bold the edge
     if c is not None:
         edge_widths = [ 5 if c[edge].x > 0 else 1 for edge in edges]
+        edge_labels = {edge: int(c[edge].x) if c[edge].x > 0 else '' for edge in edges}
     # if node memory > 0, mark the node
     if m is not None:
         node_colors = ['red' if m[node].x > 0 else color for node, color in zip(nodes, node_colors)]
+        node_labels = {node: int(m[node].x) if m[node].x > 0 else '' for node in nodes}
     # node_sizes = [ 200 if graph.nodes[node]['original'] else 50 for node in graph.nodes]
     pos = nx.get_node_attributes(graph, 'pos') 
     
     nx.draw(graph, pos, with_labels=False,
         node_color=node_colors,
         node_size=node_sizes,
-        edge_color='grey', 
-        edge_cmap=plt.cm.Blues,
-        width=edge_widths
+        edge_color='grey', width=edge_widths, edge_cmap=plt.cm.Blues
         )
+    
+    nx.draw_networkx_labels(graph, pos, labels=node_labels)
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
+
     
     plt.savefig(filename)
     plt.close()
