@@ -17,7 +17,8 @@ if __name__ == "__main__":
     task = Task(vset, 0.2, (10, 11))
     net = Network(task=task)
 
-    net.cluster_by_nearest(5)
+    # net.cluster_by_nearest(100)
+    net.make_clique()
     net.update_edges()
     net.plot(None, None, './result/fig_cluster.png')
 
@@ -26,12 +27,18 @@ if __name__ == "__main__":
     net.update_pairs()
     net.plot(None, None, './result/fig_presolve.png')
 
-    solver_path = PathAugSolver(net, 10, 'length')
+    solver_path = PathAugSolver(net, 100, 'length')
     solver_path.solve()
     print(solver_path.obj_val)
-    plot_optimized_network(solver_path.network.G, solver_path.m, solver_path.c, filename='./result/fig_solved_path.png')
+    plot_optimized_network(
+        solver_path.network.G, 
+        solver_path.m, solver_path.c, solver_path.phi,
+        filename='./result/fig_solved_path.png')
 
-    solver_flow = LinearSolver(net,)
-    solver_flow.solve()
-    print(solver_flow.obj_val)
-    plot_optimized_network(solver_flow.network.G, solver_flow.m, solver_flow.c, filename='./result/fig_solved_flow.png')
+    # solver_flow = LinearSolver(net,)
+    # solver_flow.solve()
+    # print(solver_flow.obj_val)
+    # plot_optimized_network(
+    #     solver_flow.network.G, 
+    #     solver_flow.m, solver_flow.c, solver_flow.phi,
+    #     filename='./result/fig_solved_flow.png')

@@ -2,9 +2,10 @@
 import networkx as nx
 import gurobipy as gp
 import matplotlib.pyplot as plt
+import numpy as np
 
 
-def plot_optimized_network(graph: nx.Graph, m=None, c=None, filename: str='./result/fig.png'):
+def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, filename: str='./result/fig.png'):
     edges = graph.edges(data=False)
     nodes = graph.nodes(data=False)
 
@@ -14,7 +15,15 @@ def plot_optimized_network(graph: nx.Graph, m=None, c=None, filename: str='./res
     # if edge channel > 0, bold the edge
     if c is not None:
         edge_widths = [ 5 if c[edge].x > 0 else 1 for edge in edges]
-        edge_labels = {edge: int(c[edge].x) if c[edge].x > 0 else '' for edge in edges}
+        edge_labels = {}
+        for edge in edges:
+            ch = int(c[edge].x)
+            p = int(np.ceil(phi[edge].x))
+            if ch > 0:
+                edge_labels[edge] = f'{ch}-{p}'
+                # edge_labels[edge] = f'{p}'
+            else:
+                edge_labels[edge] = ''
     # if node memory > 0, mark the node
     if m is not None:
         node_colors = ['red' if m[node].x > 0 else color for node, color in zip(nodes, node_colors)]

@@ -82,8 +82,11 @@ class PathAugSolver():
         beta = {}
         for pair in self.D.keys():
             for path in self.paths[pair]:
-                for node in path:
-                    beta[(pair, path, node)] = 2
+                for i, node in enumerate(path):
+                    if i == 0 or i == len(path)-1:
+                        beta[(pair, path, node)] = 1
+                    else:
+                        beta[(pair, path, node)] = 2
 
         return alpha, beta
 
@@ -121,7 +124,7 @@ class PathAugSolver():
         for edge in self.network.G.edges:
             self.phi[edge] = self.model.addVar(
                 vtype=gp.GRB.CONTINUOUS,
-                name=f'C_{edge}'
+                name=f'phi_{edge}'
                 )
             self.model.addConstr(self.phi[edge] >= 0)
             
@@ -153,7 +156,7 @@ class PathAugSolver():
         for pair in self.D.keys():
             # demand constraint
             self.model.addConstr(
-                gp.quicksum(self.x[(pair, path)] for path in self.paths[pair]) 
+                gp.quicksum([self.x[(pair, path)] for path in self.paths[pair]]) 
                 >= self.D[pair]
                 )
 
@@ -161,29 +164,31 @@ class PathAugSolver():
         """
         add resource constraints
         """
-        # memory constraint
-        for node in self.network.G.nodes(data=False):
-            m = 0
-            for pair in self.D.keys():
-                for path in self.paths[pair]:
-                    if node in path:
-                        m += self.beta[(pair, path, node)] * self.x[(pair, path)]
-            self.model.addConstr(self.m[node] >= m)
-
-
         # edge constraint
         for edge in self.network.G.edges(data=False):
             phi = 0
             for pair in self.D.keys():
                 for path in self.paths[pair]:
-                    edges = [(path[i], path[i+1]) for i in range(len(path)-1)]
+                    edges = tuple((path[i], path[i+1]) for i in range(len(path)-1))
                     if edge in edges:
                         phi += self.alpha[(pair, path, edge)] * self.x[(pair, path)]
+                    elif (edge[1], edge[0]) in edges:
+                        phi += self.alpha[(pair, path, (edge[1], edge[0]))] * self.x[(pair, path)]
             self.model.addConstr(self.phi[edge] >= phi)
 
+        # channel constraint
         for edge in self.network.G.edges(data=False):
             channel_capacity = self.network.G.edges[edge]['channel_capacity']
-            self.model.addConstr(self.phi[edge] <= self.c[edge] * channel_capacity)
+            self.model.addConstr(channel_capacity * self.c[edge] >= self.phi[edge])
+
+        # memory constraint
+        m = { node: 0 for node in self.network.G.nodes(data=False)}
+        for edge in self.network.G.edges(data=False):
+            u, v = edge
+            m[u] += self.phi[edge]
+            m[v] += self.phi[edge]
+        for node in self.network.G.nodes(data=False):
+            self.model.addConstr(self.m[node] >= m[node])
 
     def add_budget_def(self):
         """

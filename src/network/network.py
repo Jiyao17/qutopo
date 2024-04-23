@@ -17,7 +17,7 @@ HWParam = {
     'pm_install': 1e2, # memory installation price
     'pc': 1, # channel price per km
     # 'pc_install': 1e4, # channel installation price
-    'pc_install': 1e2, # channel installation price
+    'pc_install': 0, # channel installation price
 }
 
 
