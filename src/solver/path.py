@@ -1,12 +1,16 @@
 
+import random
+
+import numpy as np
 import networkx as nx
 import gurobipy as gp
 
-from ..network import VertexSet, VertexSource, Task, Network
+
+from ..network import VertexSet, VertexSource, Task, Network, complete_swap
 from ..utils.plot import plot_nx_graph, plot_optimized_network
 
 
-class PathAugSolver():
+class PathSolver():
     """
     path augmentation-based
     """
@@ -14,11 +18,14 @@ class PathAugSolver():
         network: Network, 
         k: int=3, 
         edge_weight: str=None,
-        output: bool=False) -> None:
+        time_limit: int=60,
+        output: bool=False
+        ) -> None:
 
         self.network = network
         self.k = k
         self.edge_weight = edge_weight
+        self.time_limit = time_limit
         self.output = output
 
         self.U = network.U
@@ -26,6 +33,7 @@ class PathAugSolver():
 
         self.model = gp.Model()
         self.obj_val = None
+        self.model.setParam('TimeLimit', time_limit)
         if output is False:
             self.model.setParam('OutputFlag', 0)
 
@@ -70,24 +78,33 @@ class PathAugSolver():
         """
         solve the paths
         """
+        
+        swap_prob = self.network.hw_params['swap_prob']
+        
         # alpha[(u, p, e)] = # of entanglements used on edge e for pair u via path p
         alpha = {}
         for pair in self.D.keys():
             for path in self.paths[pair]:
                 edges = [(path[i], path[i+1]) for i in range(len(path)-1)]
-                for edge in edges:
-                    alpha[(pair, path, edge)] = 1
+                
+                costs = complete_swap([1,] * len(edges), swap_prob)
+                for i, edge in enumerate(edges):
+                    alpha[(pair, path, edge)] = costs[i]
 
         # beta[(u, p, v)] = # of memory slots used at node v for pair u via path p
         beta = {}
         for pair in self.D.keys():
             for path in self.paths[pair]:
                 for i, node in enumerate(path):
-                    if i == 0 or i == len(path)-1:
-                        beta[(pair, path, node)] = 1
+                    if i == 0:
+                        beta[(pair, path, node)] = alpha[(pair, path, (node, path[1]))]
+                    elif i == len(path) - 1:
+                        beta[(pair, path, node)] = alpha[(pair, path, (path[-2], node))]
                     else:
-                        beta[(pair, path, node)] = 2
-
+                        mem_left = alpha[(pair, path, (path[i-1], node))]
+                        mem_right = alpha[(pair, path, (node, path[i+1]))]
+                        beta[(pair, path, node)] = mem_left + mem_right
+                        
         return alpha, beta
 
     def add_variables(self):
@@ -99,7 +116,9 @@ class PathAugSolver():
         self.x = {}
         for u in self.D.keys():
             for p in self.paths[u]:
-                self.x[(u, p)] = self.model.addVar(vtype=gp.GRB.INTEGER, name=f'x_{u}_{p}')
+                # self.x[(u, p)] = self.model.addVar(vtype=gp.GRB.INTEGER, name=f'x_{u}_{p}')
+                # no name to avoid too long name for gurobi
+                self.x[(u, p)] = self.model.addVar(vtype=gp.GRB.INTEGER)
                 self.model.addConstr(self.x[(u, p)] >= 0)
 
         # c[e] number of channels used on edge e
@@ -214,7 +233,6 @@ class PathAugSolver():
 
         self.budget = gp.quicksum(self.pv.values()) + gp.quicksum(self.pe.values())
 
-
     def solve(self):
         
         self.model.setObjective(self.budget, gp.GRB.MINIMIZE)
@@ -229,6 +247,8 @@ class PathAugSolver():
 
 
 if __name__ == "__main__":
+    # random.seed(0)
+    # np.random.seed(0)
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
     task = Task(vset, 0.2, (10, 11))
@@ -236,24 +256,23 @@ if __name__ == "__main__":
     node_num = len(net.G.nodes)
 
     net.cluster_by_nearest(5)
-    net.update_edges()
+    net.nearest_components()
     net.plot(None, None, './result/fig_cluster.png')
 
     net.segment_edge(150, 150)
-    net.plot(None, None, './result/fig_seg.png')
-
-    net.update_pairs()
-    net.update_edges()
-
+    net.plot(None, None, './result/fig_segment.png')
 
     print(len(net.G.nodes), len(net.G.edges))
-    net.plot(None, None, './result/fig.png')
+    # net.plot(None, None, './result/fig.png')
 
-    solver = PathAugSolver(net, 3)
+    solver = PathSolver(net, 5, output=True)
     solver.solve()
     
     print("Objective value: ", solver.obj_val)
-    plot_optimized_network(solver.network.G, solver.m, solver.c, filename='./result/fig-solved.png')
+    plot_optimized_network(
+        solver.network.G, 
+        solver.m, solver.c, solver.phi,
+        filename='./result/fig-solved.png')
 
 
 

@@ -7,12 +7,13 @@ import networkx as nx
 
 
 class VertexSource(enum.Enum):
-    TEST = 'topology/test.graphml'
     ATT = 'topology/ATT.graphml'
     GETNET = 'topology/Getnet.graphml'
     # IOWA = 'topology/IowaStatewideFiberMap.graphml'
     IRIS = 'topology/Iris.graphml'
     NOEL = 'topology/Noel.graphml'
+    TRIANGLE = 'topology/Triangle.graphml'
+    PAIR = 'topology/TwoNodes.graphml'
 
 
 class VertexSet():

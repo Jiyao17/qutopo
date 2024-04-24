@@ -1,4 +1,4 @@
 
 
-from .lp import LinearSolver
-from .path import PathAugSolver
+from .flow import FlowSolver
+from .path import PathSolver

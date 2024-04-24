@@ -5,11 +5,12 @@ import geopy.distance as geo
 
 from .task import Task
 from .vertex import VertexSet, VertexSource
+from .quantum import complete_swap
 from ..utils.plot import plot_nx_graph
 
 
 HWParam = {
-    'swap_prob': 1, # swap probability
+    'swap_prob': 0.7, # swap probability
     'fiber_loss': 0.2, # fiber loss
     'photon_rate': 1e4, # photon rate
     'pm': 1e1, # memory price per slot
@@ -136,6 +137,8 @@ class Network:
                     if distance < threshold:
                         self.G.add_edge(u, v, length=distance)
 
+        self.update_edges()
+
     def cluster_by_nearest(self, num: int=3):
         """
         cluster nearby nodes
@@ -157,6 +160,27 @@ class Network:
                             nearest_found[-1] = (v, distance)
             for v, _ in nearest_found:
                 self.G.add_edge(u, v, length=distance)
+
+        self.update_edges()
+
+    def connect_by_mst(self):
+        mst: nx.Graph = nx.minimum_spanning_tree(self.G)
+        components = list(nx.connected_components(self.G))
+        while len(components) > 1:
+            for edge in mst.edges:
+                c0, c1 = None, None
+                for i in range(len(components)):
+                    for node in components[i]:
+                        if node == edge[0]:
+                            c0 = i
+                        if node == edge[1]:
+                            c1 = i
+                if c0 != c1:
+                    self.G.add_edge(*edge)
+                    components = list(nx.connected_components(self.G))
+                    break
+        
+        self.update_edges()
 
     def make_clique_among_components(self):
         """
@@ -199,6 +223,8 @@ class Network:
                                 min_edge = (u, v)
             self.G.add_edge(*min_edge, length=min_dist)
             components = list(nx.connected_components(self.G))
+
+        self.update_edges()
 
     def update_pairs(self):
         """
@@ -281,8 +307,8 @@ class Network:
         for edge in edges_to_remove:
             self.G.remove_edge(*edge)
 
-        # self.update_edge()
-        # self.update_pairs()
+        self.update_edges()
+        self.update_pairs()
 
     def prune_edge_by_length(self, threshold: float=100):
         """
@@ -318,14 +344,20 @@ if __name__ == '__main__':
     # net.add_grid_points(width=500)
     # net.plot(None, None, './result/fig_grid.png')
 
-    net.cluster_by_nearest(num=3)
+    net.cluster_by_nearest(num=1)
     net.plot(None, None, './result/fig_cluster.png')
 
-    net.make_clique_among_components()
-    net.plot(None, None, './result/fig_clique.png')
+    net.nearest_components()
+    net.plot(None, None, './result/fig_nearest.png')
+
+    # net.connect_by_mst()
+    # net.plot(None, None, './result/fig_connect.png')
+
+    # net.make_clique_among_components()
+    # net.plot(None, None, './result/fig_clique.png')
     
-    net.segment_edge(200, 200)
-    net.plot(None, None, './result/fig_seg.png')
+    # net.segment_edge(200, 200)
+    # net.plot(None, None, './result/fig_seg.png')
 
     # net.make_clique()
     # net.plot(None, None, './result/fig_clique.png')
