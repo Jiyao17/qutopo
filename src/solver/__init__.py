@@ -1,4 +1,4 @@
 
 
-from .flow import FlowSolver
-from .path import PathSolver
+from .flow import FlowSolver, FlowSolverNonCost, FlowSolverMinResource
+from .path import PathSolver, PathSolverNonCost, PathSolverMinResource

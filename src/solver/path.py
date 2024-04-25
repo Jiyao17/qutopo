@@ -6,7 +6,7 @@ import networkx as nx
 import gurobipy as gp
 
 
-from ..network import VertexSet, VertexSource, Task, Network, complete_swap
+from ..network import VertexSet, VertexSource, Task, Network, complete_swap, sequential_swap
 from ..utils.plot import plot_nx_graph, plot_optimized_network
 
 
@@ -16,9 +16,10 @@ class PathSolver():
     """
     def __init__(self, 
         network: Network, 
-        k: int=3, 
+        k: int=5, 
         edge_weight: str=None,
         time_limit: int=60,
+        mip_gap: float=0.01,
         output: bool=False
         ) -> None:
 
@@ -26,6 +27,7 @@ class PathSolver():
         self.k = k
         self.edge_weight = edge_weight
         self.time_limit = time_limit
+        self.mip_gap = mip_gap
         self.output = output
 
         self.U = network.U
@@ -34,6 +36,7 @@ class PathSolver():
         self.model = gp.Model()
         self.obj_val = None
         self.model.setParam('TimeLimit', time_limit)
+        self.model.setParam('MIPGap', mip_gap)
         if output is False:
             self.model.setParam('OutputFlag', 0)
 
@@ -74,7 +77,7 @@ class PathSolver():
 
         return paths
 
-    def solve_paths(self):
+    def solve_paths(self, swap_func: 'function' = complete_swap):
         """
         solve the paths
         """
@@ -87,7 +90,7 @@ class PathSolver():
             for path in self.paths[pair]:
                 edges = [(path[i], path[i+1]) for i in range(len(path)-1)]
                 
-                costs = complete_swap([1,] * len(edges), swap_prob)
+                costs = swap_func([1,] * len(edges), swap_prob)
                 for i, edge in enumerate(edges):
                     alpha[(pair, path, edge)] = costs[i]
 
@@ -246,33 +249,103 @@ class PathSolver():
             print("Probably infeasible or unbounded.")
 
 
+class PathSolverNonCost(PathSolver):
+    def add_resource_constr(self):
+        """
+        add resource constraints
+        """
+        # edge constraint
+        for edge in self.network.G.edges(data=False):
+            phi = 0
+            for pair in self.D.keys():
+                for path in self.paths[pair]:
+                    edges = tuple((path[i], path[i+1]) for i in range(len(path)-1))
+                    if edge in edges:
+                        phi += self.alpha[(pair, path, edge)] * self.x[(pair, path)]
+                    elif (edge[1], edge[0]) in edges:
+                        phi += self.alpha[(pair, path, (edge[1], edge[0]))] * self.x[(pair, path)]
+            self.model.addConstr(self.phi[edge] >= phi)
+
+        # channel constraint
+        for edge in self.network.G.edges(data=False):
+            channel_capacity = int(self.network.G.edges[edge]['channel_capacity'])
+            self.model.addConstr(self.phi[edge] <= channel_capacity * self.c[edge])
+            self.model.addConstr(self.phi[edge] >= channel_capacity * (self.c[edge] - 1))
+
+        # memory constraint
+        m = { node: 0 for node in self.network.G.nodes(data=False)}
+        for edge in self.network.G.edges(data=False):
+            u, v = edge
+            m[u] += self.phi[edge]
+            m[v] += self.phi[edge]
+        for node in self.network.G.nodes(data=False):
+            self.model.addConstr(self.m[node] >= m[node])
+            self.model.addConstr(self.m[node] <= m[node] + 1)
+
+    def solve(self):
+        """
+        find a feasible solution without cost minimization
+        """
+        self.model.setObjective(0, gp.GRB.MINIMIZE)
+
+        self.model.optimize()
+
+        try:
+            self.obj_val = self.budget.getValue()
+        except AttributeError:
+            print("Model is not solved.")
+            print("Probably infeasible or unbounded.")
+
+
+class PathSolverMinResource(PathSolverNonCost):
+
+    def solver(self):
+        """
+        find a feasible solution with minimum resource usage
+        """
+        self.model.setObjective(gp.quicksum(self.m.values()) + gp.quicksum(self.c.values()), gp.GRB.MINIMIZE)
+
+        self.model.optimize()
+
+        try:
+            self.obj_val = self.model.objVal
+        except AttributeError:
+            print("Model is not solved.")
+            print("Probably infeasible or unbounded.")
+
+
+
 if __name__ == "__main__":
-    # random.seed(0)
-    # np.random.seed(0)
+    random.seed(0)
+    np.random.seed(0)
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 0.2, (10, 11))
+    task = Task(vset, 0.2, (100, 101))
     net = Network(task=task)
     node_num = len(net.G.nodes)
 
     net.cluster_by_nearest(5)
+    # net.make_clique()
     net.nearest_components()
-    net.plot(None, None, './result/fig_cluster.png')
+    net.plot(None, None, './result/path/fig_cluster.png')
 
     net.segment_edge(150, 150)
-    net.plot(None, None, './result/fig_segment.png')
+    net.plot(None, None, './result/path/fig_segment.png')
 
     print(len(net.G.nodes), len(net.G.edges))
     # net.plot(None, None, './result/fig.png')
 
-    solver = PathSolver(net, 5, output=True)
+    k = 10
+    solver = PathSolver(net, k, output=True)
+    # solver = PathSolverNonCost(net, k, output=True)
+    # solver = PathSolverMinResource(net, k, output=True)
     solver.solve()
     
     print("Objective value: ", solver.obj_val)
     plot_optimized_network(
         solver.network.G, 
         solver.m, solver.c, solver.phi,
-        filename='./result/fig-solved.png')
+        filename='./result/path/fig-solved.png')
 
 
 

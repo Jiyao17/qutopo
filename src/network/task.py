@@ -28,6 +28,9 @@ class Task():
         dpairs = [self.pairs[i] for i in dpairs_indices]
         for pair in dpairs:
             self.D[pair] = np.random.randint(demand_range[0], demand_range[1])
+        for pair in self.pairs:
+            if pair not in self.D:
+                self.D[pair] = 0
           
     def get_pairs(self, nodes: list):
         """

@@ -1,4 +1,7 @@
 
+import random
+import numpy as np
+
 import networkx as nx
 import gurobipy as gp
 
@@ -12,8 +15,8 @@ class FlowSolver():
     """
     def __init__(self, 
             network: Network, 
-            time_limit: int=100,
-            relaxed: bool=False, 
+            time_limit: int=60,
+            mip_gap: float=0.01,
             output: bool=False
             ) -> None:
         """
@@ -22,78 +25,75 @@ class FlowSolver():
 
         self.network = network
         self.time_limit = time_limit
-        self.relaxed = relaxed
+        self.mip_gap = mip_gap
         self.output = output
 
-        self.model = gp.Model("NetworkConstruction")
+        self.model = gp.Model("Topology Optimization")
         self.model.setParam('TimeLimit', time_limit)
+        # stop the optimization when the best bound gap is less than 5%
+        self.model.setParam('MIPGap', mip_gap)
         if output is False:
             self.model.setParam('OutputFlag', 0)
         self.obj_val = None
-        self.build(relaxed)
+        self.build()
 
-    def build(self, relaxed: bool=False):
+    def build(self):
         """
         build the linear model
         """
-        self.add_variables(relaxed)
+        self.add_variables()
         self.add_distribution_constr()
         self.add_resource_constr()
         self.add_budget_def()
 
-    def add_variables(self, relaxed: bool=False):
+    def add_variables(self):
         """
         add m, c, and f variables to the model
         """
-        device_num_type = gp.GRB.INTEGER if not relaxed else gp.GRB.CONTINUOUS
 
         # add node memory variables
         self.m = {}
         # indicator variable for memory usage
         # 1 if memory is used, 0 otherwise
         self.Im = {} 
-        max_mem = 1e4
+        max_mem = 1e6
         nodes = self.network.G.nodes(data=False)
         for node in nodes:
             self.m[node] = self.model.addVar(
-                vtype=device_num_type,
+                vtype=gp.GRB.INTEGER,
                 name=f'm_{node}'
                 )
             self.model.addConstr(self.m[node] >= 0)
 
-            if not relaxed:
-                self.Im[node] = self.model.addVar(
-                    vtype=gp.GRB.BINARY,
-                    name=f'Im_{node}'
-                    )
+            self.Im[node] = self.model.addVar(
+                vtype=gp.GRB.BINARY,
+                name=f'Im_{node}'
+                )
             # make Im the indicator variable
             # Im = 1 if m > 0, 0 otherwise
-            if not relaxed:
-                self.model.addConstr(self.m[node] >= self.Im[node])
-                self.model.addConstr(self.m[node] <= max_mem * self.Im[node])
+            self.model.addConstr(self.m[node] >= self.Im[node])
+            self.model.addConstr(self.m[node] <= max_mem * self.Im[node])
          
         # add edge channel variables
         self.c = {}
         self.Ic = {}
-        max_channel = 1e2
+        max_channel = 1e6
         edges = self.network.G.edges(data=False)
         for edge in edges:
             self.c[edge] = self.model.addVar(
-                vtype=device_num_type,
+                vtype=gp.GRB.INTEGER,
                 name=f'c_{edge}'
                 )
             self.model.addConstr(self.c[edge] >= 0)
 
-            if not relaxed:
-                self.Ic[edge] = self.model.addVar(
-                    vtype=gp.GRB.BINARY,
-                    name=f'Ic_{edge}'
-                    )
+            self.Ic[edge] = self.model.addVar(
+                vtype=gp.GRB.BINARY,
+                name=f'Ic_{edge}'
+                )
             # make Ic the indicator variable
             # Ic = 1 if c > 0, 0 otherwise
-            if not relaxed:
-                self.model.addConstr(self.c[edge] <= max_channel * self.Ic[edge])
-                self.model.addConstr(self.c[edge] >= self.Ic[edge])
+            self.model.addConstr(self.c[edge] <= max_channel * self.Ic[edge])
+            self.model.addConstr(self.c[edge] >= self.Ic[edge])
         # add edge capacity variables
         self.phi = {} # \phi in the paper
         for edge in edges:
@@ -224,15 +224,13 @@ class FlowSolver():
         self.pv = {}
         for node in self.network.G.nodes(data=False):
             self.pv[node] = pm * self.m[node]
-            if not self.relaxed:
-                self.pv[node] += pm_install * self.Im[node]
+            self.pv[node] += pm_install * self.Im[node]
         # edge budget
         edges = self.network.G.edges(data=False)
         self.pe = {}
         for edge in edges:
             self.pe[edge] = pc * self.c[edge]
-            if not self.relaxed:
-                self.pe[edge] += pc_install * self.Ic[edge]
+            self.pe[edge] += pc_install * self.Ic[edge]
 
         self.budget = gp.quicksum(self.pv.values()) + gp.quicksum(self.pe.values())
 
@@ -251,37 +249,188 @@ class FlowSolver():
             print("Probably infeasible or unbounded.")
 
 
+class FlowSolverRelaxed(FlowSolver):
+
+    def add_variables(self):
+        """
+        add m, c, and f variables to the model
+        """
+
+        # add node memory variables
+        self.m = {}
+        # indicator variable for memory usage
+        # 1 if memory is used, 0 otherwise
+        self.Im = {} 
+        max_mem = 1e6
+        nodes = self.network.G.nodes(data=False)
+        for node in nodes:
+            self.m[node] = self.model.addVar(
+                vtype=gp.GRB.CONTINUOUS,
+                name=f'm_{node}'
+                )
+            self.model.addConstr(self.m[node] >= 0)
+
+            self.Im[node] = self.model.addVar(
+                vtype=gp.GRB.CONTINUOUS,
+                name=f'Im_{node}'
+                )
+            self.model.addConstr(self.Im[node] == 0)
+         
+        # add edge channel variables
+        self.c = {}
+        self.Ic = {}
+        max_channel = 1e6
+        edges = self.network.G.edges(data=False)
+        for edge in edges:
+            self.c[edge] = self.model.addVar(
+                vtype=gp.GRB.CONTINUOUS,
+                name=f'c_{edge}'
+                )
+            self.model.addConstr(self.c[edge] >= 0)
+
+            self.Ic[edge] = self.model.addVar(
+                vtype=gp.GRB.BINARY,
+                name=f'Ic_{edge}'
+                )
+            self.model.addConstr(self.Ic[edge] == 0)
+        # add edge capacity variables
+        self.phi = {} # \phi in the paper
+        for edge in edges:
+            self.phi[edge] = self.model.addVar(
+                vtype=gp.GRB.CONTINUOUS,
+                name=f'C_{edge}'
+                )
+            self.model.addConstr(self.phi[edge] >= 0)
+            
+        pairs = self.network.pairs
+        self.f = {}
+        # add flow variables
+        for out_pair in pairs:
+            for  v in nodes:
+                if v not in out_pair:
+                    # (i, v) -> (i, j)
+                    in_pair = (out_pair[0], v) if (out_pair[0], v) in pairs else (v, out_pair[0])
+                    self.f[(out_pair, in_pair)] = self.model.addVar(
+                        vtype=gp.GRB.CONTINUOUS,
+                        name=f'f_{out_pair}_{in_pair}'
+                        )
+                    self.model.addConstr(self.f[(out_pair, in_pair)] >= 0)
+                    # (v, j) -> (i, j)
+                    in_pair = (v, out_pair[1]) if (v, out_pair[1]) in pairs else (out_pair[1], v)
+                    self.f[(out_pair, in_pair)] = self.model.addVar(
+                        vtype=gp.GRB.CONTINUOUS,
+                        name=f'f_{out_pair}_{in_pair}'
+                        )
+            # for in_pair in pairs:
+            #     if out_pair != in_pair:
+            #         self.f[(out_pair, in_pair)] = self.model.addVar(
+            #             vtype=gp.GRB.CONTINUOUS,
+            #             name=f'f_{out_pair}_{in_pair}'
+            #             )
+            #         self.model.addConstr(self.f[(out_pair, in_pair)] >= 0)
+
+
+class FlowSolverNonCost(FlowSolver):
+
+
+    def add_resource_constr(self):
+        nodes = self.network.G.nodes(data=False)
+        edges = self.network.G.edges(data=False)
+        # memory usage constraint
+        m = {node: 0 for node in nodes}
+        for edge in edges:
+            i, j = edge
+            m[i] += self.phi[edge]
+            m[j] += self.phi[edge]
+
+        for node in nodes:
+            self.model.addConstr(
+                self.m[node] >= m[node]
+            )
+            self.model.addConstr(
+                self.m[node] <= m[node] + 1
+            )
+
+        for u, v, cap in self.network.G.edges(data='channel_capacity'):
+            edge = (u, v) if (u, v) in edges else (v, u)
+            self.model.addConstr(
+                self.phi[edge] <= self.c[edge] * cap
+            )
+            self.model.addConstr(
+                self.phi[edge] >= (self.c[edge] - 1) * cap
+            )
+
+    def solve(self):
+        """
+        find a feasible solution without objective
+        """
+        # 
+        # resources = gp.quicksum(self.m.values()) + gp.quicksum(self.c.values())
+        # self.model.setObjective(resources, gp.GRB.MINIMIZE)
+
+        self.model.setObjective(0, gp.GRB.MINIMIZE)
+
+        self.model.optimize()
+
+        try:
+            self.obj_val = self.budget.getValue()
+        except AttributeError:
+            print("Model is not solved.")
+            print("Probably infeasible or unbounded.")
+
+
+class FlowSolverMinResource(FlowSolverNonCost):
+    def solve(self):
+        """
+        find a feasible solution without objective
+        """
+        # 
+        resources = gp.quicksum(self.m.values()) + gp.quicksum(self.c.values())
+        self.model.setObjective(resources, gp.GRB.MINIMIZE)
+
+        self.model.optimize()
+
+        try:
+            self.obj_val = self.budget.getValue()
+        except AttributeError:
+            print("Model is not solved.")
+            print("Probably infeasible or unbounded.")
+
+    
 
 if __name__ == "__main__":
+
+    seed = 0
+    random.seed(seed)
+    np.random.seed(seed)
+
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 0.2, (10, 101))
+    task = Task(vset, 0.2, (100, 101))
     net = Network(task=task)
 
     net.cluster_by_nearest(5)
-    # net.cluster_by_distance(500)
     net.nearest_components()
-    net.plot(None, None, './result/fig_cmp.png')
+    net.plot(None, None, './result/test/fig_cmp.png')
 
-    # net.make_clique_among_components()
-    # net.plot(None, None, './result/fig_clique.png')
     net.segment_edge(150, 150)
-    net.plot(None, None, './result/fig_segment.png')
+    net.plot(None, None, './result/test/fig_segment.png')
 
     print(len(net.G.nodes), len(net.G.edges))
-    # net.plot(None, None, './result/fig.png')
 
-    # solver = LinearSolver(net, relaxed=True)
-    solver = FlowSolver(net, relaxed=False, output=True)
-
+    solver = FlowSolver(net,output=True)
+    # solver = FlowSolverNonCost(net, output=True)
+    # solver = FlowSolverMinResource(net, output=True)
+    
     solver.solve()
     
-    print("Objective value: ", solver.obj_val)
-    plot_optimized_network(
-        solver.network.G, 
-        solver.m, solver.c, solver.phi,
-        filename='./result/fig-solved.png'
-        )
+    if solver.obj_val is not None:
+        print("Objective value: ", solver.obj_val)
+        plot_optimized_network(
+            solver.network.G, 
+            solver.m, solver.c, solver.phi,
+            filename='./result/flow/fig-solved.png'
+            )
 
 
 

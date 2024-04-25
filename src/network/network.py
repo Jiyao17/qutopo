@@ -10,7 +10,7 @@ from ..utils.plot import plot_nx_graph
 
 
 HWParam = {
-    'swap_prob': 0.7, # swap probability
+    'swap_prob': 1, # swap probability
     'fiber_loss': 0.2, # fiber loss
     'photon_rate': 1e4, # photon rate
     'pm': 1e1, # memory price per slot

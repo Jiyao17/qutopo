@@ -6,8 +6,8 @@ import copy
 
 import matplotlib.pyplot as plt
 
-from ..network import VertexSet, VertexSource, Task, Network
-from ..solver import FlowSolver, PathSolver
+from ..network import *
+from ..solver import *
 
 from ..utils.plot import plot_nx_graph, plot_optimized_network
 
@@ -68,27 +68,64 @@ def test_path_solver(
     return objs, times
 
 
-
-def test_linear_solver():
-    vsrc = VertexSource.NOEL
+def test_flow_solver(
+        vsrc: VertexSource,
+        cluster_nums: 'list[int]'=[1, 2, 3, 4, 5],
+        ):
+    
     vset = VertexSet(vsrc)
-    task = Task(vset, 0.2, (10, 11))
+    task = Task(vset, 1, (100, 101))
     net = Network(task=task)
 
-    solver_flow = FlowSolver(net,)
-    solver_flow.solve()
-    print(solver_flow.obj_val)
-    plot_optimized_network(
-        solver_flow.network.G, 
-        solver_flow.m, solver_flow.c, solver_flow.phi,
-        filename='./result/fig_solved_flow.png')
-    
+    objs = np.zeros((len(cluster_nums) + 1, ))
+    times = np.zeros((len(cluster_nums) + 1, ))
+
+    for i, cluster_num in enumerate(cluster_nums):
+        net = copy.deepcopy(net)
+
+        net.cluster_by_nearest(cluster_num)
+        net.nearest_components()
+        net.segment_edge(150, 150)
+
+        start = time.time()
+        solver = FlowSolver(net)
+        solver.solve()
+        end = time.time()
+
+        objs[cluster_num] = solver.obj_val
+        times[cluster_num] = end - start
+
+        print(f"Cluster Number: {cluster_num} Done.")
+        
+    # plot line figure for obj
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(cluster_nums, objs[1:])
+    ax.set_xlabel('Cluster Number')
+    ax.set_ylabel('Objective Value')
+    plt.savefig(f'./result/flow/fig_obj_{vsrc.name}.png')
+
+    # plot line figure for time
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(cluster_nums, times[1:])
+    ax.set_xlabel('Cluster Number')
+    ax.set_ylabel('Time')
+    plt.savefig(f'./result/flow/fig_time_{vsrc.name}.png')
+
+    return objs, times
+
+
 
 def comp_solvers():
 
+    seed = 0
+    random.seed(seed)
+    np.random.seed(seed)
+
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 1, (100, 101))
+    task = Task(vset, 0.2, (100, 101))
     net = Network(task=task)
 
     net.cluster_by_nearest(5)
@@ -96,25 +133,44 @@ def comp_solvers():
     net.segment_edge(150, 150)
 
     net_path = copy.deepcopy(net)
-    path_solver = PathSolver(net_path, 5, time_limit=10)
+    # path_solver = PathSolver(net_path, 10, mip_gap=0.01)
+    path_solver = PathSolverNonCost(net_path, 10, mip_gap=0.01)
+    # path_solver = PathSolverMinResource(net_path, 10, mip_gap=0.01)
     path_solver.solve()
     print(path_solver.obj_val)
     plot_optimized_network(
         path_solver.network.G, 
         path_solver.m, path_solver.c, path_solver.phi,
-        filename='./result/fig_solved_path.png')
+        filename='./result/test/fig_solved_path.png')
 
     net_flow = copy.deepcopy(net)
-    flow_solver = FlowSolver(net_flow, time_limit=100)
+    # flow_solver = FlowSolver(net_flow, mip_gap=0.01)
+    flow_solver = FlowSolverNonCost(net_flow, mip_gap=0.01)
+    # flow_solver = FlowSolverMinResource(net_flow, mip_gap=0.01)
+
     flow_solver.solve()
-    print(flow_solver.obj_val)
-    plot_optimized_network(
-        flow_solver.network.G, 
-        flow_solver.m, flow_solver.c, flow_solver.phi,
-        filename='./result/fig_solved_flow.png')
+
+    if flow_solver.obj_val is not None:
+        print(flow_solver.obj_val)
+        plot_optimized_network(
+            flow_solver.network.G, 
+            flow_solver.m, flow_solver.c, flow_solver.phi,
+            filename='./result/test/fig_solved_flow.png')
 
 
 if __name__ == "__main__":
+    # weekly conclusion
+
+    # for path solver
+    # 1. increasing path number does not reduce the objective value much
+    # 2. but increasing cluster number does
+    # 3. denser graph is better
+
+    # for flow solver
+    # 1. if optimally solved, obj is theoretically better than the one given by path solver
+    # 2. solving is fast but building is slow
+    #    building time is sensitive to graph density
+
 
     vsrcs = [
         VertexSource.GETNET,
@@ -125,6 +181,9 @@ if __name__ == "__main__":
     
     # for vsrc in vsrcs:
     #     test_path_solver(vsrc)
+
+    # for vsrc in vsrcs:
+    #     test_flow_solver(vsrc)
 
     # test_path_solver(VertexSource.NOEL)
     

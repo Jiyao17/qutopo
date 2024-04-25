@@ -1,7 +1,7 @@
 
 import numpy as np
 
-def complete_swap(costs: 'list[float]', swap_prob):
+def complete_swap(costs: 'list[float]', swap_prob: float):
     """
     conduct swaps as a complete binary tree
     each edge is a leaf
@@ -24,11 +24,30 @@ def complete_swap(costs: 'list[float]', swap_prob):
     
     return costs
 
+def sequential_swap(costs: 'list[float]', swap_prob: float):
+    """
+    conduct swaps as a sequential binary tree
+    each edge is a leaf
+    each swapping is a branching node
+    """
+    # tree configure
+    leaf_num = len(costs)
+    depth = leaf_num - 1
+
+    costs: np.ndarray = np.ones(leaf_num)
+    for i in range(1, depth + 1):
+        costs[:i + 1] /= swap_prob
+
+    costs = costs.tolist()
+    return costs
+
+
 
 if __name__ == '__main__':
     costs = [1,] * 7
-    swap_prob = 0.7
+    swap_prob = 0.5
 
-    cost = complete_swap(costs, swap_prob)
-    
-    print(cost)
+    costs = complete_swap(costs, swap_prob)
+    print(costs)
+    costs = sequential_swap(costs, swap_prob)
+    print(costs)
