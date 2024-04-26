@@ -50,96 +50,7 @@ class Network:
 
         self.pairs = []
 
-    def add_grid_points(self, area: dict=None, width: float=200):
-        """
-        add random points to the network
-        """
-        if area is None:
-            area = self.area
-
-        nodes = self.get_grid_points(area, width)
-        for node_id in nodes.keys():
-            lon, lat = nodes[node_id]
-            self.G.add_node(node_id, pos=(lon, lat), original=False)
-
-        # self.nodes = self.G.nodes(data=False)
-        # self.update_pairs()
-    
-    def get_grid_points(self, area: dict, width: float):
-            """
-            generate grids of size*size in the area
-            """
-            nodes = {}
-            new_id = len(self.G.nodes)
-            hlen_km = geo.distance(
-                (area['lat_min'], area['lon_min']),
-                (area['lat_min'], area['lon_max'])
-            ).km
-            vlen_km = geo.distance(
-                (area['lat_min'], area['lon_min']),
-                (area['lat_max'], area['lon_min'])
-            ).km
-            hlen = area['lon_max'] - area['lon_min']
-            vlen = area['lat_max'] - area['lat_min']
-            center = ((area['lon_max'] + area['lon_min']) / 2, (area['lat_max'] + area['lat_min']) / 2)
-            hstep = int(np.ceil(hlen_km / width))
-            vstep = int(np.ceil(vlen_km / width))
-            
-            # vertical center line
-            vnodes = [center, ]
-            nodes[str(new_id)] = center
-            new_id += 1
-            for i in range(1, int(np.ceil(vstep / 2)) + 1):
-                vnode = (center[0], center[1] + i * vlen / vstep)
-                vnodes.append(vnode)
-                nodes[str(new_id)] = vnode
-                new_id += 1
-                vnode = (center[0], center[1] - i * vlen / vstep)
-                vnodes.append(vnode)
-                nodes[str(new_id)] = vnode
-                new_id += 1
-            # horizontal expansion
-            for vnode in vnodes:
-                for i in range(1, int(np.ceil(hstep / 2)) + 1):
-                    lon = vnode[0] + i * hlen / hstep
-                    lat = vnode[1]
-                    nodes[str(new_id)] = (lon, lat)
-                    new_id += 1
-                    lon = vnode[0] - i * hlen / hstep
-                    nodes[str(new_id)] = (lon, lat)
-                    new_id += 1
-
-            return nodes
-
-    def mst(self, prune: bool=False):
-        """
-        form the minimum spanning tree
-        """
-        # find the minimum spanning tree over original nodes
-
-        mst = nx.minimum_spanning_tree(self.G, weight='length')
-        if prune:
-            self.G = mst
-
-        return mst
-
-    def cluster_by_distance(self, threshold: float=100):
-        """
-        cluster nearby nodes
-        """
-        # connect any two nodes within threshold
-        for u in self.G.nodes(data=False):
-            for v in self.G.nodes(data=False):
-                if u != v :
-                    pos1 = self.G.nodes[u]['pos']
-                    pos2 = self.G.nodes[v]['pos']
-                    distance = geo.distance((pos1[1], pos1[0]), (pos2[1], pos2[0])).km
-                    if distance < threshold:
-                        self.G.add_edge(u, v, length=distance)
-
-        self.update_edges()
-
-    def cluster_by_nearest(self, num: int=3):
+    def connect_nearest_nodes(self, num: int=3):
         """
         cluster nearby nodes
         """
@@ -163,46 +74,7 @@ class Network:
 
         self.update_edges()
 
-    def connect_by_mst(self):
-        mst: nx.Graph = nx.minimum_spanning_tree(self.G)
-        components = list(nx.connected_components(self.G))
-        while len(components) > 1:
-            for edge in mst.edges:
-                c0, c1 = None, None
-                for i in range(len(components)):
-                    for node in components[i]:
-                        if node == edge[0]:
-                            c0 = i
-                        if node == edge[1]:
-                            c1 = i
-                if c0 != c1:
-                    self.G.add_edge(*edge)
-                    components = list(nx.connected_components(self.G))
-                    break
-        
-        self.update_edges()
-
-    def make_clique_among_components(self):
-        """
-        add edges between every pair of components
-        """
-        components = list(nx.connected_components(self.G))
-        # connect the components by adding an shortest edge
-        for i in range(len(components) - 1):
-            for j in range(i + 1, len(components)):
-                min_dist = np.inf
-                min_edge = None
-                for u in components[i]:
-                    for v in components[j]:
-                        pos1 = self.G.nodes[u]['pos']
-                        pos2 = self.G.nodes[v]['pos']
-                        distance = geo.distance((pos1[1], pos1[0]), (pos2[1], pos2[0])).km
-                        if distance < min_dist:
-                            min_dist = distance
-                            min_edge = (u, v)
-                self.G.add_edge(*min_edge, length=min_dist)
-
-    def nearest_components(self):
+    def connect_nearest_component(self):
         """
         connect the graph by repeatedly connecting the nearest components
         """
@@ -225,50 +97,6 @@ class Network:
             components = list(nx.connected_components(self.G))
 
         self.update_edges()
-
-    def update_pairs(self):
-        """
-        get all pairs of nodes in the network
-        """
-        self.pairs = []
-        nodes = list(self.G.nodes(data=False))
-        for i in range(len(nodes)):
-            for j in range(i + 1, len(nodes)):
-                self.pairs.append((nodes[i], nodes[j]))
-        return self.pairs
-
-    def make_clique(self, nodes=None):
-        """
-        make a clique network for given nodes
-        """
-        if nodes is None:
-            nodes = self.G.nodes(data=False)
-        # add edges if not exist
-        for node in nodes:
-            for neighbor in nodes:
-                if node != neighbor and not self.G.has_edge(node, neighbor):
-                    self.G.add_edge(node, neighbor)
-
-        self.update_edges()
-
-    def update_edges(self):
-        """
-        update the edge length and channel_capacity
-        based on the distance between nodes
-        """
-        for edge in self.G.edges(data=False):
-            u, v = edge
-            u_pos = self.G.nodes[u]['pos']
-            v_pos = self.G.nodes[v]['pos']
-            length = geo.distance((u_pos[1], u_pos[0]), (v_pos[1], v_pos[0])).km
-            fiber_loss = self.hw_params['fiber_loss']
-            photon_rate = self.hw_params['photon_rate']
-            # prob for half fiber (detectors are in the middle of edges)
-            prob = 10 ** (-0.1 * fiber_loss * (length/2)) 
-            channel_capacity = photon_rate * prob**2
-            # round to 2 decimal places
-            self.G[u][v]['length'] = np.round(length, 2)
-            self.G[u][v]['channel_capacity'] = channel_capacity
 
     def segment_edge(self, threshold: float, seg_len: float):
         """
@@ -310,20 +138,88 @@ class Network:
         self.update_edges()
         self.update_pairs()
 
-    def prune_edge_by_length(self, threshold: float=100):
+    def cluster_inter_nodes(self, k: int=3):
         """
-        remove edges with length greater than threshold
+        merge close intermediate nodes
+        1. cluster the intermediate nodes by k-means
+        2. merge the nodes in the same cluster
         """
-        for edge in self.G.edges:
-            if self.G[edge[0]][edge[1]]['length'] > threshold:
-                self.G.remove_edge(*edge)
-    
-    def prune_edge_by_density(self, lb:5):
+        
+        nodes = [node for node in self.G.nodes(data=False) if not self.G.nodes[node]['original']]
+        if k > len(nodes):
+            k = len(nodes)
+        # pick k random nodes as initial cluster centers
+        initial_center_nodes = np.random.choice(nodes, k, replace=False)
+        centers = np.array([self.G.nodes[node]['pos'] for node in initial_center_nodes])
+        clusters: 'list[list]'= [ [ ] for _ in range(k)]
+        new_centers = np.zeros((k, 2))
+        # k-means
+        while True:
+            for node in nodes:
+                pos = self.G.nodes[node]['pos']
+                min_dist = np.inf
+                min_center = 0
+                for i, center in enumerate(centers):
+                    dist = geo.distance((center[1], center[0]), (pos[1], pos[0])).km
+                    if dist < min_dist:
+                        min_dist = dist
+                        min_center = i
+                clusters[min_center].append(node)
+            for i, cluster in enumerate(clusters):
+                if len(cluster) == 0:
+                    new_centers[i] = centers[i]
+                else:
+                    new_centers[i] = np.mean([self.G.nodes[node]['pos'] for node in cluster], axis=0)
+            if np.allclose(centers, new_centers):
+                break
+            centers = new_centers
+            clusters = [ [ ] for _ in range(k)]
+            
+        # remove all intermediate nodes
+        for node in nodes:
+            self.G.remove_node(node)
+        # add new nodes
+        new_id = len(self.G.nodes)
+        for i, cluster in enumerate(clusters):
+            lon, lat = centers[i]
+            self.G.add_node(str(new_id), pos=(lon, lat), original=False)
+            new_id += 1
+
+        self.update_edges()
+        self.update_pairs()
+
+
+
+    def update_pairs(self):
         """
-        remove edges with density less than lb
+        get all pairs of nodes in the network
         """
-        pass
-    
+        self.pairs = []
+        nodes = list(self.G.nodes(data=False))
+        for i in range(len(nodes)):
+            for j in range(i + 1, len(nodes)):
+                self.pairs.append((nodes[i], nodes[j]))
+        return self.pairs
+
+    def update_edges(self):
+        """
+        update the edge length and channel_capacity
+        based on the distance between nodes
+        """
+        for edge in self.G.edges(data=False):
+            u, v = edge
+            u_pos = self.G.nodes[u]['pos']
+            v_pos = self.G.nodes[v]['pos']
+            length = geo.distance((u_pos[1], u_pos[0]), (v_pos[1], v_pos[0])).km
+            fiber_loss = self.hw_params['fiber_loss']
+            photon_rate = self.hw_params['photon_rate']
+            # prob for half fiber (detectors are in the middle of edges)
+            prob = 10 ** (-0.1 * fiber_loss * (length/2)) 
+            channel_capacity = photon_rate * prob**2
+            # round to 2 decimal places
+            self.G[u][v]['length'] = np.round(length, 2)
+            self.G[u][v]['channel_capacity'] = channel_capacity
+
     def plot(self, 
             node_label: str='id', 
             edge_label: str='length', 
@@ -332,8 +228,10 @@ class Network:
         plot_nx_graph(self.G, node_label, edge_label, filename)
 
 
+
+
 if __name__ == '__main__':
-    topo = VertexSource.ATT
+    topo = VertexSource.NOEL
     vset = VertexSet(topo)
     task = Task(vset)
     net = Network(task)
@@ -344,30 +242,35 @@ if __name__ == '__main__':
     # net.add_grid_points(width=500)
     # net.plot(None, None, './result/fig_grid.png')
 
-    net.cluster_by_nearest(num=1)
-    net.plot(None, None, './result/fig_cluster.png')
+    city_num = len(vset.vertices)
 
-    net.nearest_components()
-    net.plot(None, None, './result/fig_nearest.png')
+    net.connect_nearest_nodes(num=5)
+    net.plot(None, None, './result/test/fig_cluster.png')
 
-    # net.connect_by_mst()
-    # net.plot(None, None, './result/fig_connect.png')
+    net.connect_nearest_component()
+    net.plot(None, None, './result/test/fig_nearest.png')
 
-    # net.make_clique_among_components()
-    # net.plot(None, None, './result/fig_clique.png')
-    
-    # net.segment_edge(200, 200)
-    # net.plot(None, None, './result/fig_seg.png')
+    net.segment_edge(100, 100)
+    net.plot(None, None, './result/test/fig_segment.png')
 
-    # net.make_clique()
-    # net.plot(None, None, './result/fig_clique.png')
+    inter_node_num = len(net.G.nodes) - city_num
 
-    # net.mst(prune=True)
-    # net.plot(None, None, './result/fig_mst.png')
-    
+    net.cluster_inter_nodes(inter_node_num // 3)
+    net.plot(None, None, './result/test/fig_merge.png')
 
-    # net.add_points_random(num=2)
-    # net.make_clique()
+    net.connect_nearest_nodes(num=5)
+    net.plot(None, None, './result/test/fig_cluster2.png')
+
+    net.connect_nearest_component()
+    net.plot(None, None, './result/test/fig_nearest2.png')
+
+    net.segment_edge(100, 100)
+    net.plot(None, None, './result/test/fig_segment2.png')
+
+
+
+
+
 
     # print(net.G.nodes(data=True))
     # print(net.G.edges(data=True))

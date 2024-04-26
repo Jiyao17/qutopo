@@ -324,9 +324,9 @@ if __name__ == "__main__":
     net = Network(task=task)
     node_num = len(net.G.nodes)
 
-    net.cluster_by_nearest(5)
+    net.connect_nearest_nodes(5)
     # net.make_clique()
-    net.nearest_components()
+    net.connect_nearest_component()
     net.plot(None, None, './result/path/fig_cluster.png')
 
     net.segment_edge(150, 150)

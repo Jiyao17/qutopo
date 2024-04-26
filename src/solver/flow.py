@@ -409,12 +409,20 @@ if __name__ == "__main__":
     task = Task(vset, 0.2, (100, 101))
     net = Network(task=task)
 
-    net.cluster_by_nearest(5)
-    net.nearest_components()
+    net.connect_nearest_nodes(5)
+    net.connect_nearest_component()
     net.plot(None, None, './result/test/fig_cmp.png')
 
     net.segment_edge(150, 150)
     net.plot(None, None, './result/test/fig_segment.png')
+
+    k = len(net.G.nodes) - len(vset.vertices)
+    net.cluster_inter_nodes(k // 5)
+    net.plot(None, None, './result/test/fig_cluster.png')
+
+    net.connect_nearest_nodes(5)
+    net.connect_nearest_component()
+    net.plot(None, None, './result/test/fig_cmp2.png')
 
     print(len(net.G.nodes), len(net.G.edges))
 

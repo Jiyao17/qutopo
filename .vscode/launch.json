@@ -8,8 +8,8 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            // "module": "src.network.network",
-            "module": "src.solver.path",
+            "module": "src.network.network",
+            // "module": "src.solver.path",
 
         }
     ]
