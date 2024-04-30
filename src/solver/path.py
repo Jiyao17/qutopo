@@ -318,7 +318,7 @@ class PathSolverMinResource(PathSolverNonCost):
 if __name__ == "__main__":
     random.seed(0)
     np.random.seed(0)
-    vsrc = VertexSource.NOEL
+    vsrc = VertexSource.IRIS
     vset = VertexSet(vsrc)
     task = Task(vset, 0.2, (100, 101))
     net = Topology(task=task)

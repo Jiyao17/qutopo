@@ -48,7 +48,7 @@ class Topology:
             pos = self.U[node]
             self.G.add_node(node_id, pos=pos, group=0)
 
-        self.pairs = []
+        self.pairs = self.update_pairs()
 
     def connect_nearest_nodes(self, num: int=5, group: int=0):
         """
@@ -203,12 +203,14 @@ class Topology:
         """
         get all pairs of nodes in the network
         """
-        self.pairs = []
+        pairs = []
         nodes = list(self.G.nodes(data=False))
         for i in range(len(nodes)):
             for j in range(i + 1, len(nodes)):
-                self.pairs.append((nodes[i], nodes[j]))
-        return self.pairs
+                pairs.append((nodes[i], nodes[j]))
+                
+        self.pairs = pairs
+        return pairs
 
     def update_edges(self):
         """

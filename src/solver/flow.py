@@ -416,14 +416,14 @@ if __name__ == "__main__":
     net.segment_edges(150, 150, 2)
     net.plot(None, None, './result/test/fig_segment.png')
 
-    k = len(net.G.nodes) - len(vset.vertices)
-    k = int(np.sqrt(k))
-    net.cluster_inter_nodes(15, 2)
-    net.plot(None, None, './result/test/fig_cluster.png')
+    # k = len(net.G.nodes) - len(vset.vertices)
+    # k = int(np.sqrt(k))
+    # net.cluster_inter_nodes(10, 2)
+    # net.plot(None, None, './result/test/fig_cluster.png')
 
-    net.connect_nearest_nodes(10, 3)
-    net.connect_nearest_component(3)
-    net.plot(None, None, './result/test/fig_cmp2.png')
+    # net.connect_nearest_nodes(5, 3)
+    # net.connect_nearest_component(3)
+    # net.plot(None, None, './result/test/fig_cmp2.png')
 
     print(len(net.G.nodes), len(net.G.edges))
 
