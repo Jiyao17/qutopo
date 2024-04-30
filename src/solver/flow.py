@@ -5,7 +5,7 @@ import numpy as np
 import networkx as nx
 import gurobipy as gp
 
-from ..network import VertexSet, VertexSource, Task, Network
+from ..network import VertexSet, VertexSource, Task, Topology
 from ..utils.plot import plot_nx_graph, plot_optimized_network
 
 
@@ -14,7 +14,7 @@ class FlowSolver():
     solve the linear optimization problem
     """
     def __init__(self, 
-            network: Network, 
+            network: Topology, 
             time_limit: int=60,
             mip_gap: float=0.01,
             output: bool=False
@@ -407,21 +407,22 @@ if __name__ == "__main__":
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
     task = Task(vset, 0.2, (100, 101))
-    net = Network(task=task)
+    net = Topology(task=task)
 
-    net.connect_nearest_nodes(5)
-    net.connect_nearest_component()
+    net.connect_nearest_nodes(5, 1)
+    net.connect_nearest_component(1)
     net.plot(None, None, './result/test/fig_cmp.png')
 
-    net.segment_edge(150, 150)
+    net.segment_edges(150, 150, 2)
     net.plot(None, None, './result/test/fig_segment.png')
 
     k = len(net.G.nodes) - len(vset.vertices)
-    net.cluster_inter_nodes(k // 5)
+    k = int(np.sqrt(k))
+    net.cluster_inter_nodes(15, 2)
     net.plot(None, None, './result/test/fig_cluster.png')
 
-    net.connect_nearest_nodes(5)
-    net.connect_nearest_component()
+    net.connect_nearest_nodes(10, 3)
+    net.connect_nearest_component(3)
     net.plot(None, None, './result/test/fig_cmp2.png')
 
     print(len(net.G.nodes), len(net.G.edges))
@@ -437,7 +438,7 @@ if __name__ == "__main__":
         plot_optimized_network(
             solver.network.G, 
             solver.m, solver.c, solver.phi,
-            filename='./result/flow/fig-solved.png'
+            filename='./result/test/fig-solved.png'
             )
 
 

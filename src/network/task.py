@@ -40,7 +40,6 @@ class Task():
         for src in nodes:
             for dst in nodes:
                 if src != dst and (dst, src) not in pairs:
-                    # networkx use string as node names
                     pairs.append((src, dst))
 
         return pairs

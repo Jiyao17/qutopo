@@ -13,7 +13,7 @@ from ..utils.plot import plot_nx_graph, plot_optimized_network
 
 
 def test_path_solver(
-        network: Network, 
+        network: Topology, 
         cluster_nums: 'list[int]'=[1, 2, 3, 4, 5],
         path_nums: 'list[int]'=[1, 2, 3, 4, 5],
         ):
@@ -28,7 +28,7 @@ def test_path_solver(
 
             net.connect_nearest_nodes(cluster_num)
             net.connect_nearest_component()
-            net.segment_edge(150, 150)
+            net.segment_edges(150, 150)
 
             start = time.time()
             solver = PathSolver(net, path_num)
@@ -75,7 +75,7 @@ def test_flow_solver(
     
     vset = VertexSet(vsrc)
     task = Task(vset, 1, (100, 101))
-    net = Network(task=task)
+    net = Topology(task=task)
 
     objs = np.zeros((len(cluster_nums) + 1, ))
     times = np.zeros((len(cluster_nums) + 1, ))
@@ -85,7 +85,7 @@ def test_flow_solver(
 
         net.connect_nearest_nodes(cluster_num)
         net.connect_nearest_component()
-        net.segment_edge(150, 150)
+        net.segment_edges(150, 150)
 
         start = time.time()
         solver = FlowSolver(net)
@@ -126,11 +126,11 @@ def comp_solvers():
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
     task = Task(vset, 0.2, (100, 101))
-    net = Network(task=task)
+    net = Topology(task=task)
 
     net.connect_nearest_nodes(5)
     net.connect_nearest_component()
-    net.segment_edge(150, 150)
+    net.segment_edges(150, 150)
 
     net_path = copy.deepcopy(net)
     # path_solver = PathSolver(net_path, 10, mip_gap=0.01)

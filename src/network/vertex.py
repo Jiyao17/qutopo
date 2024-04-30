@@ -34,9 +34,9 @@ class VertexSet():
         self.G: nx.MultiGraph = nx.read_graphml(path, force_multigraph=True)
         # extract
         for node in self.G.nodes(data=True):
-            id = node[0]
-            lon, lat = node[1]['Longitude'], node[1]['Latitude']
-            self.vertices[id] = (lon, lat)
+            id = int(node[0])
+            lat, lon= node[1]['Latitude'], node[1]['Longitude']
+            self.vertices[id] = (lat, lon)
 
 
 

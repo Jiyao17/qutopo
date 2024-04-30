@@ -1,4 +1,7 @@
 
+
+from copy import deepcopy
+
 import networkx as nx
 import gurobipy as gp
 import matplotlib.pyplot as plt
@@ -6,11 +9,15 @@ import numpy as np
 
 
 def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, filename: str='./result/fig.png'):
-    edges = graph.edges(data=False)
+    graph = deepcopy(graph)
+    
+    empty_nodes = [ node for node in m if m[node].x == 0]
+    graph.remove_nodes_from(empty_nodes)
     nodes = graph.nodes(data=False)
+    edges = graph.edges(data=False)
 
-    node_colors = ['blue' if graph.nodes[node]['original'] else 'green' for node in graph.nodes]
-    node_sizes = [ 200 if graph.nodes[node]['original'] else 50 for node in graph.nodes]
+    node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'green' for node in graph.nodes]
+    node_sizes = [ 200 if graph.nodes[node]['group'] == 0 else 50 for node in graph.nodes]
 
     # if edge channel > 0, bold the edge
     if c is not None:
@@ -29,7 +36,8 @@ def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, filename: 
         node_colors = ['red' if m[node].x > 0 else color for node, color in zip(nodes, node_colors)]
         node_labels = {node: int(m[node].x) if m[node].x > 0 else '' for node in nodes}
     # node_sizes = [ 200 if graph.nodes[node]['original'] else 50 for node in graph.nodes]
-    pos = nx.get_node_attributes(graph, 'pos') 
+    pos: dict = nx.get_node_attributes(graph, 'pos') 
+    pos = {node: (lon, lat) for node, (lat, lon) in pos.items()}
     
     nx.draw(graph, pos, with_labels=False,
         node_color=node_colors,
@@ -57,14 +65,16 @@ def plot_nx_graph(
     nodes layout is based on coordinates
     """
 
-    pos = nx.get_node_attributes(graph, 'pos')
+    pos: dict = nx.get_node_attributes(graph, 'pos')
+    # reverse latitude and longitude
+    pos = {node: (lon, lat) for node, (lat, lon) in pos.items()}
 
 
     node_labels = nx.get_node_attributes(graph, node_label)
     edge_labels = nx.get_edge_attributes(graph, edge_label)
-    node_colors = ['blue' if graph.nodes[node]['original'] else 'green' for node in graph.nodes]
+    node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'green' for node in graph.nodes]
     # node_colors = ['blue' for node in graph.nodes]
-    node_sizes = [ 200 if graph.nodes[node]['original'] else 50 for node in graph.nodes]
+    node_sizes = [ 200 if graph.nodes[node]['group'] == 0 else 50 for node in graph.nodes]
 
     nx.draw(graph, pos, with_labels=False, 
         node_color=node_colors, 

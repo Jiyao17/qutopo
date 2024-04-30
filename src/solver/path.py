@@ -6,7 +6,7 @@ import networkx as nx
 import gurobipy as gp
 
 
-from ..network import VertexSet, VertexSource, Task, Network, complete_swap, sequential_swap
+from ..network import VertexSet, VertexSource, Task, Topology, complete_swap, sequential_swap
 from ..utils.plot import plot_nx_graph, plot_optimized_network
 
 
@@ -15,7 +15,7 @@ class PathSolver():
     path augmentation-based
     """
     def __init__(self, 
-        network: Network, 
+        network: Topology, 
         k: int=5, 
         edge_weight: str=None,
         time_limit: int=60,
@@ -321,22 +321,25 @@ if __name__ == "__main__":
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
     task = Task(vset, 0.2, (100, 101))
-    net = Network(task=task)
+    net = Topology(task=task)
     node_num = len(net.G.nodes)
 
-    net.connect_nearest_nodes(5)
-    # net.make_clique()
-    net.connect_nearest_component()
+    net.connect_nearest_nodes(5, 1)
+    net.connect_nearest_component(1)
     net.plot(None, None, './result/path/fig_cluster.png')
 
-    net.segment_edge(150, 150)
+    net.segment_edges(150, 150, 2)
     net.plot(None, None, './result/path/fig_segment.png')
+
+    net.cluster_inter_nodes(15, 2)
+    net.connect_nearest_nodes(5, 2)
+    net.plot(None, None, './result/path/fig_merge.png')
 
     print(len(net.G.nodes), len(net.G.edges))
     # net.plot(None, None, './result/fig.png')
 
     k = 10
-    solver = PathSolver(net, k, output=True)
+    solver = PathSolver(net, k, 'length', output=False)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
     solver.solve()
@@ -345,7 +348,8 @@ if __name__ == "__main__":
     plot_optimized_network(
         solver.network.G, 
         solver.m, solver.c, solver.phi,
-        filename='./result/path/fig-solved.png')
+        filename='./result/path/fig-solved.png'
+        )
 
 
 
