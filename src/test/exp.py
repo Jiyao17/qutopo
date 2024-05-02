@@ -26,7 +26,7 @@ def test_path_solver(
         for j, path_num in enumerate(path_nums):
             net = copy.deepcopy(network)
 
-            net.connect_nearest_nodes(cluster_num)
+            net.connect_nodes_nearest(cluster_num)
             net.connect_nearest_component()
             net.segment_edges(150, 150)
 
@@ -83,7 +83,7 @@ def test_flow_solver(
     for i, cluster_num in enumerate(cluster_nums):
         net = copy.deepcopy(net)
 
-        net.connect_nearest_nodes(cluster_num)
+        net.connect_nodes_nearest(cluster_num)
         net.connect_nearest_component()
         net.segment_edges(150, 150)
 
@@ -128,7 +128,7 @@ def comp_solvers():
     task = Task(vset, 0.2, (100, 101))
     net = Topology(task=task)
 
-    net.connect_nearest_nodes(5)
+    net.connect_nodes_nearest(5)
     net.connect_nearest_component()
     net.segment_edges(150, 150)
 

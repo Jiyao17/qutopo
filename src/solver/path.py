@@ -46,16 +46,22 @@ class PathSolver():
         """
         build the model
         """
+
+        print("Building the model...")
         # find k shortest paths between all pairs in D
         # and pre-solve the paths
+        print("searching paths...")
         self.paths = self.all_pairs_YenKSP(weight=edge_weight)
-        self.alpha, self.beta = self.solve_paths()
+        print("solving paths...")
+        self.alpha, self.beta = self.solve_paths(self.paths)
 
+        print("building linear model...")
         self.add_variables()
         self.add_resource_constr()
         self.add_budget_def()
         self.add_demand_constr()
-        self.solve()
+        
+        print("Model building done.")
 
     def all_pairs_YenKSP(self, weight=None):
         """
@@ -77,7 +83,7 @@ class PathSolver():
 
         return paths
 
-    def solve_paths(self, swap_func: 'function' = complete_swap):
+    def solve_paths(self, paths, swap_func: 'function' = complete_swap):
         """
         solve the paths
         """
@@ -87,7 +93,7 @@ class PathSolver():
         # alpha[(u, p, e)] = # of entanglements used on edge e for pair u via path p
         alpha = {}
         for pair in self.D.keys():
-            for path in self.paths[pair]:
+            for path in paths[pair]:
                 edges = [(path[i], path[i+1]) for i in range(len(path)-1)]
                 
                 costs = swap_func([1,] * len(edges), swap_prob)
@@ -97,7 +103,7 @@ class PathSolver():
         # beta[(u, p, v)] = # of memory slots used at node v for pair u via path p
         beta = {}
         for pair in self.D.keys():
-            for path in self.paths[pair]:
+            for path in paths[pair]:
                 for i, node in enumerate(path):
                     if i == 0:
                         beta[(pair, path, node)] = alpha[(pair, path, (node, path[1]))]
@@ -318,38 +324,49 @@ class PathSolverMinResource(PathSolverNonCost):
 if __name__ == "__main__":
     random.seed(0)
     np.random.seed(0)
-    vsrc = VertexSource.IRIS
+    vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 0.2, (100, 101))
+    task = Task(vset, 1.0, (100, 101))
     net = Topology(task=task)
-    node_num = len(net.G.nodes)
+    city_num = len(net.G.nodes)
 
-    net.connect_nearest_nodes(5, 1)
-    net.connect_nearest_component(1)
-    net.plot(None, None, './result/path/fig_cluster.png')
 
-    net.segment_edges(150, 150, 2)
-    net.plot(None, None, './result/path/fig_segment.png')
+    round_num = 10
+    past_rounds = set()
+    for i in range(1, round_num + 1):
+        net.connect_nodes_nearest(10, i)
+        net.connect_nodes_radius(200, i)
+        net.connect_nearest_component(i)
+        # net.make_clique(list(net.G.nodes(data=False)), 1)
+        net.plot(None, None, './result/path/fig_cluster.png')
 
-    net.cluster_inter_nodes(15, 2)
-    net.connect_nearest_nodes(5, 2)
-    net.plot(None, None, './result/path/fig_merge.png')
+        net.segment_edges(200, 200, i)
+        net.plot(None, None, './result/path/fig_segment.png')
 
-    print(len(net.G.nodes), len(net.G.edges))
-    # net.plot(None, None, './result/fig.png')
+        net.cluster_inter_nodes(city_num, set([i]))
+        net.plot(None, None, './result/path/fig_merge.png')
 
-    k = 10
-    solver = PathSolver(net, k, 'length', output=False)
-    # solver = PathSolverNonCost(net, k, output=True)
-    # solver = PathSolverMinResource(net, k, output=True)
-    solver.solve()
-    
-    print("Objective value: ", solver.obj_val)
-    plot_optimized_network(
-        solver.network.G, 
-        solver.m, solver.c, solver.phi,
-        filename='./result/path/fig-solved.png'
-        )
+        net.connect_nodes_radius(200, i)
+
+        past_rounds.add(i)
+        print("Round ", i, " topology done.")
+
+        print(len(net.G.nodes), len(net.G.edges))
+        # print(list(net.G.nodes(data=False)))
+        # net.plot(None, None, './result/fig.png')
+
+        k = 10
+        solver = PathSolver(net, k, 'length', output=False)
+        # solver = PathSolverNonCost(net, k, output=True)
+        # solver = PathSolverMinResource(net, k, output=True)
+        solver.solve()
+        
+        print("Objective value: ", solver.obj_val)
+        plot_optimized_network(
+            solver.network.G, 
+            solver.m, solver.c, solver.phi,
+            filename='./result/path/fig-solved.png'
+            )
 
 
 

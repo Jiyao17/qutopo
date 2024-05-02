@@ -409,7 +409,7 @@ if __name__ == "__main__":
     task = Task(vset, 0.2, (100, 101))
     net = Topology(task=task)
 
-    net.connect_nearest_nodes(5, 1)
+    net.connect_nodes_nearest(5, 1)
     net.connect_nearest_component(1)
     net.plot(None, None, './result/test/fig_cmp.png')
 

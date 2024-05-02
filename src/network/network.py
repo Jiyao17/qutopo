@@ -22,6 +22,19 @@ HWParam = {
 }
 
 
+class IDGenerator:
+    
+        def __init__(self, start: int=0) -> None:
+            self.start = start - 1
+    
+        def __iter__(self):
+            return self
+    
+        def __next__(self):
+            self.start += 1
+            return self.start
+
+
 class Topology:
 
     def __init__(self, 
@@ -43,14 +56,17 @@ class Topology:
             }
         
         self.G: 'nx.Graph' = nx.Graph()
+        self.id_gen = IDGenerator()
         for node in self.U.keys():
-            node_id = node
             pos = self.U[node]
-            self.G.add_node(node_id, pos=pos, group=0)
+            self.G.add_node(self.new_nid(), pos=pos, group=0)
 
         self.pairs = self.update_pairs()
 
-    def connect_nearest_nodes(self, num: int=5, group: int=0):
+    def new_nid(self):
+        return next(self.id_gen)
+
+    def connect_nodes_nearest(self, num: int=5, group: int=0):
         """
         cluster nearby nodes
         """
@@ -71,6 +87,22 @@ class Topology:
                             nearest_found[-1] = (v, distance)
             for v, _ in nearest_found:
                 self.G.add_edge(u, v, length=distance, group=group)
+
+        self.update_edges()
+
+    def connect_nodes_radius(self, radius: float=200, group: int=0):
+        """
+        cluster nearby nodes within radius
+        """
+        # connect any two nodes within radius
+        for u in self.G.nodes(data=False):
+            for v in self.G.nodes(data=False):
+                if u != v :
+                    u_pos = self.G.nodes[u]['pos']
+                    v_pos = self.G.nodes[v]['pos']
+                    distance = geo.distance(u_pos, v_pos).km
+                    if distance <= radius:
+                        self.G.add_edge(u, v, length=distance, group=group)
 
         self.update_edges()
 
@@ -111,24 +143,50 @@ class Topology:
                 distance = geo.distance(u_pos, v_pos).km
                 self.G.add_edge(u, v, length=distance, group=group)
 
-    def segment_edge(self, u, v, point_num, group=0):
+        self.update_edges()
+
+    def segment_edge_line(self, u, v, point_num, group=0):
         """
         segment the edge with length greater than threshold
         form clique for the whole edge
         """
         u_lat, u_lon = self.G.nodes[u]['pos']
         v_lat, v_lon = self.G.nodes[v]['pos']
-        new_id = len(self.G.nodes)
+        nodes = []
+        # add seg_num nodes between u and v
+        for i in range(1, point_num + 1):
+            lat = u_lat + (v_lat - u_lat) / (point_num + 1) * i
+            lon = u_lon + (v_lon - u_lon) / (point_num + 1) * i
+
+            new_id = self.new_nid()
+            self.G.add_node(new_id, pos=(lat, lon), group=group)
+            nodes.append(new_id)
+
+        nodes = [u, ] + nodes + [v, ]
+        for i in range(len(nodes) - 1):
+            u, v = nodes[i], nodes[i + 1]
+            u_pos = self.G.nodes[u]['pos']
+            v_pos = self.G.nodes[v]['pos']
+            distance = geo.distance(u_pos, v_pos).km
+            self.G.add_edge(u, v, length=distance, group=group)    
+
+    def segment_edge_clique(self, u, v, point_num, group=0):
+        """
+        segment the edge with length greater than threshold
+        form clique for the whole edge
+        """
+        u_lat, u_lon = self.G.nodes[u]['pos']
+        v_lat, v_lon = self.G.nodes[v]['pos']
         clique_nodes = [u, v]
         # add seg_num nodes between u and v
         for i in range(1, point_num + 1):
             lat = u_lat + (v_lat - u_lat) / (point_num + 1) * i
             lon = u_lon + (v_lon - u_lon) / (point_num + 1) * i
 
+            new_id = self.new_nid()
             self.G.add_node(new_id, pos=(lat, lon), group=group)
 
             clique_nodes.append(new_id)
-            new_id += 1
 
         self.make_clique(clique_nodes, group)
 
@@ -138,27 +196,29 @@ class Topology:
         form clique for the whole edge
         """
         
-        edges = list(self.G.edges(data='length'))
-        for u, v, l in edges:
-            if l > threshold:
-                point_num = int(np.ceil(l / seg_len))
-                self.segment_edge(u, v, point_num, group)
+        edges = list(self.G.edges(data=True))
+        for u, v, d in edges:
+            if d['length'] > threshold and d['group'] == group:
+                point_num = int(np.ceil(d['length'] / seg_len))
+                self.segment_edge_line(u, v, point_num, group)
 
         self.update_edges()
         self.update_pairs()
 
-    def cluster_inter_nodes(self, k: int=3, group: int=0):
+    def cluster_inter_nodes(self, k: int=3, groups: set={1}):
         """
-        merge close intermediate nodes with group == given group
+        merge close intermediate nodes with group in groups
         the group attribute of new nodes is also set to group
         1. cluster the intermediate nodes by k-means
         2. merge the nodes in the same cluster
         """
         
         nodes = [ node for node in self.G.nodes(data=False) 
-                    if self.G.nodes[node]['group'] == group]
+                    if self.G.nodes[node]['group'] in groups]
         if k > len(nodes):
             k = len(nodes)
+        if k == 0:
+            return
         # pick k random nodes as initial cluster centers
         initial_center_nodes = np.random.choice(nodes, k, replace=False)
         centers = np.array([self.G.nodes[node]['pos'] for node in initial_center_nodes])
@@ -190,13 +250,68 @@ class Topology:
         for node in nodes:
             self.G.remove_node(node)
         # add new nodes
-        new_id = len(self.G.nodes)
         for i, cluster in enumerate(clusters):
             lon, lat = centers[i]
-            self.G.add_node(str(new_id), pos=(lon, lat), group=group)
-            new_id += 1
+            self.G.add_node(self.new_nid(), pos=(lon, lat), group=max(groups) + 1)
+
 
         self.update_edges()
+        self.update_pairs()
+
+    def get_grid_points(self, area: dict, width: float):
+        """
+        generate grids of size*size in the area
+        """
+        nodes = {}
+        hlen_km = geo.distance(
+            (area['lat_min'], area['lon_min']),
+            (area['lat_min'], area['lon_max'])
+        ).km
+        vlen_km = geo.distance(
+            (area['lat_min'], area['lon_min']),
+            (area['lat_max'], area['lon_min'])
+        ).km
+        hlen = area['lon_max'] - area['lon_min']
+        vlen = area['lat_max'] - area['lat_min']
+        
+        center = ((area['lat_max'] + area['lat_min']) / 2, (area['lon_max'] + area['lon_min']) / 2)
+        hstep = int(np.ceil(hlen_km / width))
+        vstep = int(np.ceil(vlen_km / width))
+        
+        # vertical center line
+        vnodes = [center, ]
+        nodes[self.new_nid()] = center
+        for i in range(1, int(np.ceil(vstep / 2)) + 1):
+            vnode = (center[1] + i * vlen / vstep, center[0])
+            vnodes.append(vnode)
+            nodes[self.new_nid()] = vnode
+            vnode = (center[1] - i * vlen / vstep, center[0])
+            vnodes.append(vnode)
+            nodes[self.new_nid()] = vnode
+        # horizontal expansion
+        for vnode in vnodes:
+            for i in range(1, int(np.ceil(hstep / 2)) + 1):
+                lat = vnode[1]
+                lon = vnode[0] + i * hlen / hstep
+                nodes[self.new_nid()] = (lat, lon)
+                lon = vnode[0] - i * hlen / hstep
+                nodes[self.new_nid()] = (lat, lon)
+
+        return nodes
+
+    def add_grid_points(self, area: dict=None, width: float=200, group: int=0):
+        """
+        add random points to the network
+        """
+        if area is None:
+            area = self.area
+
+        nodes = self.get_grid_points(area, width)
+        for node_id in nodes.keys():
+            lat, lon = nodes[node_id]
+            self.G.add_node(node_id, pos=(lon, lat), group=group)
+
+        # self.nodes = self.G.nodes(data=False)
         self.update_pairs()
 
     def update_pairs(self):
@@ -244,14 +359,14 @@ class Topology:
 
 
 if __name__ == '__main__':
-    topo = VertexSource.NOEL
+    topo = VertexSource.GETNET
     vset = VertexSet(topo)
     task = Task(vset)
     net = Topology(task)
 
     city_num = len(vset.vertices)
 
-    net.connect_nearest_nodes(num=5, group=0)
+    net.connect_nodes_nearest(num=5, group=0)
     net.plot(None, None, './result/test/fig_cluster.png')
 
     net.connect_nearest_component()
@@ -269,7 +384,7 @@ if __name__ == '__main__':
     net.cluster_inter_nodes(inter_node_num // 3, 1)
     net.plot(None, None, './result/test/fig_merge.png')
 
-    net.connect_nearest_nodes(num=5, group=2)
+    net.connect_nodes_nearest(num=5, group=2)
     net.plot(None, None, './result/test/fig_cluster2.png')
 
     # net.connect_nearest_component()
