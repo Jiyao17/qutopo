@@ -15,10 +15,10 @@ HWParam = {
     'photon_rate': 1e4, # photon rate
     'pm': 1, # memory price per slot
     # 'pm_install': 1e6, # memory installation price
-    'pm_install': 1e1, # memory installation price
+    'pm_install': 1e2, # memory installation price
     'pc': 1, # channel price per km
     # 'pc_install': 1e4, # channel installation price
-    'pc_install': 1e1, # channel installation price
+    'pc_install': 1e2, # channel installation price
 }
 
 
@@ -49,10 +49,10 @@ class Topology:
 
         # square area enclosing all nodes, 
         self.area = {
-            'lat_min': min([v[1] for v in self.U.values()]),
-            'lat_max': max([v[1] for v in self.U.values()]),
-            'lon_min': min([v[0] for v in self.U.values()]),
-            'lon_max': max([v[0] for v in self.U.values()]),
+            'lat_min': min([v[0] for v in self.U.values()]),
+            'lat_max': max([v[0] for v in self.U.values()]),
+            'lon_min': min([v[1] for v in self.U.values()]),
+            'lon_max': max([v[1] for v in self.U.values()]),
             }
         
         self.G: 'nx.Graph' = nx.Graph()
@@ -164,11 +164,11 @@ class Topology:
 
         nodes = [u, ] + nodes + [v, ]
         for i in range(len(nodes) - 1):
-            u, v = nodes[i], nodes[i + 1]
-            u_pos = self.G.nodes[u]['pos']
-            v_pos = self.G.nodes[v]['pos']
-            distance = geo.distance(u_pos, v_pos).km
-            self.G.add_edge(u, v, length=distance, group=group)    
+            p, q = nodes[i], nodes[i + 1]
+            p_pos = self.G.nodes[p]['pos']
+            q_pos = self.G.nodes[q]['pos']
+            distance = geo.distance(p_pos, q_pos).km
+            self.G.add_edge(p, q, length=distance, group=group)    
 
     def segment_edge_clique(self, u, v, point_num, group=0):
         """
@@ -256,6 +256,19 @@ class Topology:
 
 
         self.update_edges()
+        self.update_pairs()
+
+    def add_nodes_random(self, num: int, group: int=0):
+        """
+        add random points to the network
+        """
+        for i in range(num):
+            lat_min, lat_max = self.area['lat_min'], self.area['lat_max']
+            lon_min, lon_max = self.area['lon_min'], self.area['lon_max']
+            lat = lat_min + np.random.rand() * (lat_max - lat_min)
+            lon = lon_min + np.random.rand() * (lon_max - lon_min)
+            self.G.add_node(self.new_nid(), pos=(lat, lon), group=group)
+
         self.update_pairs()
 
     def get_grid_points(self, area: dict, width: float):
@@ -366,7 +379,7 @@ if __name__ == '__main__':
 
     city_num = len(vset.vertices)
 
-    net.connect_nodes_nearest(num=5, group=0)
+    net.connect_nodes_nearest(num=10, group=0)
     net.plot(None, None, './result/test/fig_cluster.png')
 
     net.connect_nearest_component()
@@ -381,11 +394,11 @@ if __name__ == '__main__':
 
     inter_node_num = len(net.G.nodes) - city_num
 
-    net.cluster_inter_nodes(inter_node_num // 3, 1)
-    net.plot(None, None, './result/test/fig_merge.png')
+    # net.cluster_inter_nodes(inter_node_num // 3, 1)
+    # net.plot(None, None, './result/test/fig_merge.png')
 
-    net.connect_nodes_nearest(num=5, group=2)
-    net.plot(None, None, './result/test/fig_cluster2.png')
+    # net.connect_nodes_nearest(num=5, group=2)
+    # net.plot(None, None, './result/test/fig_cluster2.png')
 
     # net.connect_nearest_component()
     # net.plot(None, None, './result/test/fig_nearest2.png')

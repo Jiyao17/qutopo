@@ -255,6 +255,7 @@ class PathSolver():
             print("Probably infeasible or unbounded.")
 
 
+
 class PathSolverNonCost(PathSolver):
     def add_resource_constr(self):
         """
@@ -330,43 +331,25 @@ if __name__ == "__main__":
     net = Topology(task=task)
     city_num = len(net.G.nodes)
 
+    net.connect_nodes_nearest(10, 1)
+    net.connect_nodes_radius(200, 1)
+    net.connect_nearest_component(1)
+    net.segment_edges(200, 200, 1)
+    net.plot(None, None, './result/path/fig.png')
 
-    round_num = 10
-    past_rounds = set()
-    for i in range(1, round_num + 1):
-        net.connect_nodes_nearest(10, i)
-        net.connect_nodes_radius(200, i)
-        net.connect_nearest_component(i)
-        # net.make_clique(list(net.G.nodes(data=False)), 1)
-        net.plot(None, None, './result/path/fig_cluster.png')
+    k = 20
+    solver = PathSolver(net, k, 'length', output=False)
+    # solver = PathSolverNonCost(net, k, output=True)
+    # solver = PathSolverMinResource(net, k, output=True)
+    solver.solve()
 
-        net.segment_edges(200, 200, i)
-        net.plot(None, None, './result/path/fig_segment.png')
-
-        net.cluster_inter_nodes(city_num, set([i]))
-        net.plot(None, None, './result/path/fig_merge.png')
-
-        net.connect_nodes_radius(200, i)
-
-        past_rounds.add(i)
-        print("Round ", i, " topology done.")
-
-        print(len(net.G.nodes), len(net.G.edges))
-        # print(list(net.G.nodes(data=False)))
-        # net.plot(None, None, './result/fig.png')
-
-        k = 10
-        solver = PathSolver(net, k, 'length', output=False)
-        # solver = PathSolverNonCost(net, k, output=True)
-        # solver = PathSolverMinResource(net, k, output=True)
-        solver.solve()
-        
-        print("Objective value: ", solver.obj_val)
-        plot_optimized_network(
-            solver.network.G, 
-            solver.m, solver.c, solver.phi,
-            filename='./result/path/fig-solved.png'
-            )
+    
+    print("Objective value: ", solver.obj_val)
+    plot_optimized_network(
+        solver.network.G, 
+        solver.m, solver.c, solver.phi,
+        filename='./result/path/fig-solved.png'
+        )
 
 
 

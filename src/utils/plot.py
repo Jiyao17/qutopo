@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, filename: str='./result/fig.png'):
+def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, labeled=False, filename: str='./result/fig.png'):
     graph = deepcopy(graph)
     
     empty_nodes = [ node for node in m if m[node].x == 0]
@@ -45,8 +45,9 @@ def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, filename: 
         edge_color='grey', width=edge_widths, edge_cmap=plt.cm.Blues
         )
     
-    nx.draw_networkx_labels(graph, pos, labels=node_labels)
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
+    if labeled:
+        nx.draw_networkx_labels(graph, pos, labels=node_labels)
+        nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
 
     
     plt.savefig(filename)
@@ -64,15 +65,20 @@ def plot_nx_graph(
     plot the network
     nodes layout is based on coordinates
     """
-
+    graph = deepcopy(graph)
     pos: dict = nx.get_node_attributes(graph, 'pos')
     # reverse latitude and longitude
+    # for node in pos:
+    #     lat, lon = pos[node]
+    #     if not 0 < lat < 90 or not -180 < lon < 180:
+    #         raise ValueError(f'Invalid latitude and longitude: {lat}, {lon}')
     pos = {node: (lon, lat) for node, (lat, lon) in pos.items()}
+
 
 
     node_labels = nx.get_node_attributes(graph, node_label)
     edge_labels = nx.get_edge_attributes(graph, edge_label)
-    node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'green' for node in graph.nodes]
+    node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'red' for node in graph.nodes]
     # node_colors = ['blue' for node in graph.nodes]
     node_sizes = [ 200 if graph.nodes[node]['group'] == 0 else 50 for node in graph.nodes]
 
@@ -80,10 +86,12 @@ def plot_nx_graph(
         node_color=node_colors, 
         node_size=node_sizes,
         edge_color='grey', width=1, edge_cmap=plt.cm.Blues
-        )
+    )
+
     nx.draw_networkx_labels(graph, pos, labels=node_labels)
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
 
     plt.savefig(filename)
     plt.close()
+
 
