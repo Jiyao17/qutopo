@@ -55,16 +55,17 @@ class Topology:
             'lon_max': max([v[1] for v in self.U.values()]),
             }
         
-        self.G: 'nx.Graph' = nx.Graph()
-        self.id_gen = IDGenerator()
+        self.graph: 'nx.Graph' = nx.Graph()
+        self.nid = IDGenerator()
         for node in self.U.keys():
             pos = self.U[node]
-            self.G.add_node(self.new_nid(), pos=pos, group=0)
+            self.graph.add_node(next(self.nid), pos=pos, group=0)
+        # for edge, length in self.task.vset.edges.items():
+        #     src, dst = edge
+        #     length = geo.geodesic(self.U[src], self.U[dst]).km
+        #     self.graph.add_edge(src, dst, length=length, group=0)
 
         self.pairs = self.update_pairs()
-
-    def new_nid(self):
-        return next(self.id_gen)
 
     def connect_nodes_nearest(self, num: int=5, group: int=0):
         """
@@ -72,12 +73,12 @@ class Topology:
         """
         # connect nearest num nodes
         
-        for u in self.G.nodes(data=False):
+        for u in self.graph.nodes(data=False):
             nearest_found = []
-            for v in self.G.nodes(data=False):
+            for v in self.graph.nodes(data=False):
                 if u != v :
-                    u_pos = self.G.nodes[u]['pos']
-                    v_pos = self.G.nodes[v]['pos']
+                    u_pos = self.graph.nodes[u]['pos']
+                    v_pos = self.graph.nodes[v]['pos']
                     distance = geo.distance(u_pos, v_pos).km
                     if len(nearest_found) < num:
                         nearest_found.append((v, distance))
@@ -86,7 +87,7 @@ class Topology:
                         if distance < nearest_found[-1][1]:
                             nearest_found[-1] = (v, distance)
             for v, _ in nearest_found:
-                self.G.add_edge(u, v, length=distance, group=group)
+                self.graph.add_edge(u, v, length=distance, group=group)
 
         self.update_edges()
 
@@ -95,14 +96,14 @@ class Topology:
         cluster nearby nodes within radius
         """
         # connect any two nodes within radius
-        for u in self.G.nodes(data=False):
-            for v in self.G.nodes(data=False):
+        for u in self.graph.nodes(data=False):
+            for v in self.graph.nodes(data=False):
                 if u != v :
-                    u_pos = self.G.nodes[u]['pos']
-                    v_pos = self.G.nodes[v]['pos']
+                    u_pos = self.graph.nodes[u]['pos']
+                    v_pos = self.graph.nodes[v]['pos']
                     distance = geo.distance(u_pos, v_pos).km
                     if distance <= radius:
-                        self.G.add_edge(u, v, length=distance, group=group)
+                        self.graph.add_edge(u, v, length=distance, group=group)
 
         self.update_edges()
 
@@ -110,7 +111,7 @@ class Topology:
         """
         connect the graph by repeatedly connecting the nearest components
         """
-        components = list(nx.connected_components(self.G))
+        components = list(nx.connected_components(self.graph))
         while len(components) > 1:
             min_dist = np.inf
             min_edge = None
@@ -119,14 +120,14 @@ class Topology:
                     # find the nearest pair of nodes
                     for u in components[i]:
                         for v in components[j]:
-                            u_pos = self.G.nodes[u]['pos']
-                            v_pos = self.G.nodes[v]['pos']
+                            u_pos = self.graph.nodes[u]['pos']
+                            v_pos = self.graph.nodes[v]['pos']
                             distance = geo.distance(u_pos, v_pos).km
                             if distance < min_dist:
                                 min_dist = distance
                                 min_edge = (u, v)
-            self.G.add_edge(*min_edge, length=min_dist, group=group)
-            components = list(nx.connected_components(self.G))
+            self.graph.add_edge(*min_edge, length=min_dist, group=group)
+            components = list(nx.connected_components(self.graph))
 
         self.update_edges()
 
@@ -138,10 +139,10 @@ class Topology:
             for j in range(i + 1, len(nodes)):
                 u = nodes[i]
                 v = nodes[j]
-                u_pos = self.G.nodes[u]['pos']
-                v_pos = self.G.nodes[v]['pos']
+                u_pos = self.graph.nodes[u]['pos']
+                v_pos = self.graph.nodes[v]['pos']
                 distance = geo.distance(u_pos, v_pos).km
-                self.G.add_edge(u, v, length=distance, group=group)
+                self.graph.add_edge(u, v, length=distance, group=group)
 
         self.update_edges()
 
@@ -150,41 +151,41 @@ class Topology:
         segment the edge with length greater than threshold
         form clique for the whole edge
         """
-        u_lat, u_lon = self.G.nodes[u]['pos']
-        v_lat, v_lon = self.G.nodes[v]['pos']
+        u_lat, u_lon = self.graph.nodes[u]['pos']
+        v_lat, v_lon = self.graph.nodes[v]['pos']
         nodes = []
         # add seg_num nodes between u and v
         for i in range(1, point_num + 1):
             lat = u_lat + (v_lat - u_lat) / (point_num + 1) * i
             lon = u_lon + (v_lon - u_lon) / (point_num + 1) * i
 
-            new_id = self.new_nid()
-            self.G.add_node(new_id, pos=(lat, lon), group=group)
+            new_id = next(self.nid)
+            self.graph.add_node(new_id, pos=(lat, lon), group=group)
             nodes.append(new_id)
 
         nodes = [u, ] + nodes + [v, ]
         for i in range(len(nodes) - 1):
             p, q = nodes[i], nodes[i + 1]
-            p_pos = self.G.nodes[p]['pos']
-            q_pos = self.G.nodes[q]['pos']
+            p_pos = self.graph.nodes[p]['pos']
+            q_pos = self.graph.nodes[q]['pos']
             distance = geo.distance(p_pos, q_pos).km
-            self.G.add_edge(p, q, length=distance, group=group)    
+            self.graph.add_edge(p, q, length=distance, group=group)    
 
     def segment_edge_clique(self, u, v, point_num, group=0):
         """
         segment the edge with length greater than threshold
         form clique for the whole edge
         """
-        u_lat, u_lon = self.G.nodes[u]['pos']
-        v_lat, v_lon = self.G.nodes[v]['pos']
+        u_lat, u_lon = self.graph.nodes[u]['pos']
+        v_lat, v_lon = self.graph.nodes[v]['pos']
         clique_nodes = [u, v]
         # add seg_num nodes between u and v
         for i in range(1, point_num + 1):
             lat = u_lat + (v_lat - u_lat) / (point_num + 1) * i
             lon = u_lon + (v_lon - u_lon) / (point_num + 1) * i
 
-            new_id = self.new_nid()
-            self.G.add_node(new_id, pos=(lat, lon), group=group)
+            new_id = next(self.nid)
+            self.graph.add_node(new_id, pos=(lat, lon), group=group)
 
             clique_nodes.append(new_id)
 
@@ -196,7 +197,7 @@ class Topology:
         form clique for the whole edge
         """
         
-        edges = list(self.G.edges(data=True))
+        edges = list(self.graph.edges(data=True))
         for u, v, d in edges:
             if d['length'] > threshold and d['group'] == group:
                 point_num = int(np.ceil(d['length'] / seg_len))
@@ -213,21 +214,21 @@ class Topology:
         2. merge the nodes in the same cluster
         """
         
-        nodes = [ node for node in self.G.nodes(data=False) 
-                    if self.G.nodes[node]['group'] in groups]
+        nodes = [ node for node in self.graph.nodes(data=False) 
+                    if self.graph.nodes[node]['group'] in groups]
         if k > len(nodes):
             k = len(nodes)
         if k == 0:
             return
         # pick k random nodes as initial cluster centers
         initial_center_nodes = np.random.choice(nodes, k, replace=False)
-        centers = np.array([self.G.nodes[node]['pos'] for node in initial_center_nodes])
+        centers = np.array([self.graph.nodes[node]['pos'] for node in initial_center_nodes])
         clusters: 'list[list]'= [ [ ] for _ in range(k)]
         new_centers = np.zeros((k, 2))
         # k-means
         while True:
             for node in nodes:
-                pos = self.G.nodes[node]['pos']
+                pos = self.graph.nodes[node]['pos']
                 min_dist = np.inf
                 min_center = 0
                 for i, center in enumerate(centers):
@@ -240,7 +241,7 @@ class Topology:
                 if len(cluster) == 0:
                     new_centers[i] = centers[i]
                 else:
-                    new_centers[i] = np.mean([self.G.nodes[node]['pos'] for node in cluster], axis=0)
+                    new_centers[i] = np.mean([self.graph.nodes[node]['pos'] for node in cluster], axis=0)
             if np.allclose(centers, new_centers):
                 break
             centers = new_centers
@@ -248,11 +249,10 @@ class Topology:
             
         # remove all intermediate nodes
         for node in nodes:
-            self.G.remove_node(node)
+            self.graph.remove_node(node)
         # add new nodes
         for i, cluster in enumerate(clusters):
-            lon, lat = centers[i]
-            self.G.add_node(self.new_nid(), pos=(lon, lat), group=max(groups) + 1)
+            self.graph.add_node(next(self.nid), pos=centers[i], group=max(groups) + 1)
 
 
         self.update_edges()
@@ -263,11 +263,9 @@ class Topology:
         add random points to the network
         """
         for i in range(num):
-            lat_min, lat_max = self.area['lat_min'], self.area['lat_max']
-            lon_min, lon_max = self.area['lon_min'], self.area['lon_max']
-            lat = lat_min + np.random.rand() * (lat_max - lat_min)
-            lon = lon_min + np.random.rand() * (lon_max - lon_min)
-            self.G.add_node(self.new_nid(), pos=(lat, lon), group=group)
+            lat = np.random.uniform(self.area['lat_min'], self.area['lat_max'])
+            lon = np.random.uniform(self.area['lon_min'], self.area['lon_max'])
+            self.graph.add_node(next(self.nid), pos=(lat, lon), group=group)
 
         self.update_pairs()
 
@@ -293,22 +291,22 @@ class Topology:
         
         # vertical center line
         vnodes = [center, ]
-        nodes[self.new_nid()] = center
+        nodes[next(self.nid)] = center
         for i in range(1, int(np.ceil(vstep / 2)) + 1):
             vnode = (center[1] + i * vlen / vstep, center[0])
             vnodes.append(vnode)
-            nodes[self.new_nid()] = vnode
+            nodes[next(self.nid)] = vnode
             vnode = (center[1] - i * vlen / vstep, center[0])
             vnodes.append(vnode)
-            nodes[self.new_nid()] = vnode
+            nodes[next(self.nid)] = vnode
         # horizontal expansion
         for vnode in vnodes:
             for i in range(1, int(np.ceil(hstep / 2)) + 1):
                 lat = vnode[1]
                 lon = vnode[0] + i * hlen / hstep
-                nodes[self.new_nid()] = (lat, lon)
+                nodes[next(self.nid)] = (lat, lon)
                 lon = vnode[0] - i * hlen / hstep
-                nodes[self.new_nid()] = (lat, lon)
+                nodes[next(self.nid)] = (lat, lon)
 
         return nodes
 
@@ -321,8 +319,7 @@ class Topology:
 
         nodes = self.get_grid_points(area, width)
         for node_id in nodes.keys():
-            lat, lon = nodes[node_id]
-            self.G.add_node(node_id, pos=(lon, lat), group=group)
+            self.graph.add_node(node_id, pos=nodes[node_id], group=group)
 
         # self.nodes = self.G.nodes(data=False)
         self.update_pairs()
@@ -332,7 +329,7 @@ class Topology:
         get all pairs of nodes in the network
         """
         pairs = []
-        nodes = list(self.G.nodes(data=False))
+        nodes = list(self.graph.nodes(data=False))
         for i in range(len(nodes)):
             for j in range(i + 1, len(nodes)):
                 pairs.append((nodes[i], nodes[j]))
@@ -347,10 +344,10 @@ class Topology:
             -channel_capacity
         based on the geodesic distance between nodes
         """
-        for edge in self.G.edges(data=False):
+        for edge in self.graph.edges(data=False):
             u, v = edge
-            u_pos = self.G.nodes[u]['pos']
-            v_pos = self.G.nodes[v]['pos']
+            u_pos = self.graph.nodes[u]['pos']
+            v_pos = self.graph.nodes[v]['pos']
             length = geo.distance(u_pos, v_pos).km
             fiber_loss = self.hw_params['fiber_loss']
             photon_rate = self.hw_params['photon_rate']
@@ -358,15 +355,15 @@ class Topology:
             prob = 10 ** (-0.1 * fiber_loss * (length/2)) 
             channel_capacity = photon_rate * prob**2
             # round to 2 decimal places
-            self.G[u][v]['length'] = np.round(length, 2)
-            self.G[u][v]['channel_capacity'] = channel_capacity
+            self.graph[u][v]['length'] = np.round(length, 2)
+            self.graph[u][v]['channel_capacity'] = channel_capacity
 
     def plot(self, 
             node_label: str='id', 
             edge_label: str='length', 
             filename: str='./result/fig.png'
             ):
-        plot_nx_graph(self.G, node_label, edge_label, filename)
+        plot_nx_graph(self.graph, node_label, edge_label, filename)
 
 
 
@@ -379,23 +376,31 @@ if __name__ == '__main__':
 
     city_num = len(vset.vertices)
 
-    net.connect_nodes_nearest(num=10, group=0)
+    net.connect_nodes_nearest(num=10, group=1)
     net.plot(None, None, './result/test/fig_cluster.png')
 
-    net.connect_nearest_component()
+    net.connect_nearest_component(1)
     net.plot(None, None, './result/test/fig_nearest.png')
-    edge_num = len(net.G.edges)
+    edge_num = len(net.graph.edges)
     print(edge_num)
 
-    net.segment_edges(100, 100, 1)
+    net.segment_edges(200, 200, 1)
     net.plot(None, None, './result/test/fig_segment.png')
-    edge_num = len(net.G.edges)
+    edge_num = len(net.graph.edges)
     print(edge_num)
 
-    inter_node_num = len(net.G.nodes) - city_num
+    inter_node_num = len(net.graph.nodes) - city_num
+    print(inter_node_num)
 
-    # net.cluster_inter_nodes(inter_node_num // 3, 1)
-    # net.plot(None, None, './result/test/fig_merge.png')
+
+    round_num = 10
+    for i in range(1, round_num + 1):
+
+        net.add_nodes_random(inter_node_num // 3, i)
+        net.plot(None, None, f'./result/test/fig_random_{i}.png')
+
+        net.cluster_inter_nodes(inter_node_num // 3, set(range(1, i + 1)))
+        net.plot(None, None, f'./result/test/fig_merge_{i}.png')
 
     # net.connect_nodes_nearest(num=5, group=2)
     # net.plot(None, None, './result/test/fig_cluster2.png')

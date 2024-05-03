@@ -21,7 +21,6 @@ def test_path_solver(
     times = np.zeros((len(cluster_nums) + 1, len(path_nums) + 1))
     objs = np.zeros((len(cluster_nums) + 1, len(path_nums) + 1))
 
-
     for i, cluster_num in enumerate(cluster_nums):
         for j, path_num in enumerate(path_nums):
             net = copy.deepcopy(network)

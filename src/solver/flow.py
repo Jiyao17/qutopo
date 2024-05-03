@@ -57,7 +57,7 @@ class FlowSolver():
         # 1 if memory is used, 0 otherwise
         self.Im = {} 
         max_mem = 1e6
-        nodes = self.network.G.nodes(data=False)
+        nodes = self.network.graph.nodes(data=False)
         for node in nodes:
             self.m[node] = self.model.addVar(
                 vtype=gp.GRB.INTEGER,
@@ -78,7 +78,7 @@ class FlowSolver():
         self.c = {}
         self.Ic = {}
         max_channel = 1e6
-        edges = self.network.G.edges(data=False)
+        edges = self.network.graph.edges(data=False)
         for edge in edges:
             self.c[edge] = self.model.addVar(
                 vtype=gp.GRB.INTEGER,
@@ -136,7 +136,7 @@ class FlowSolver():
         """
         # definition of out-flows
         self.O = {}
-        nodes = self.network.G.nodes(data=False)
+        nodes = self.network.graph.nodes(data=False)
         pairs = self.network.pairs
         for out_pair in pairs:
             i, j = out_pair
@@ -161,7 +161,7 @@ class FlowSolver():
             self.I[in_pair] += self.phi[(j, i)] if (j, i) in self.phi else 0
 
             # in-flows from other pairs
-            for v in self.network.G.nodes(data=False):
+            for v in self.network.graph.nodes(data=False):
                 if v != i and v != j:
                     out_pair1 = (i, v) if (i, v) in pairs else (v, i)
                     out_pair2 = (v, j) if (v, j) in pairs else (j, v)
@@ -192,8 +192,8 @@ class FlowSolver():
             self.model.addConstr(self.flow_conserv[pair] >= demand)
 
     def add_resource_constr(self):
-        nodes = self.network.G.nodes(data=False)
-        edges = self.network.G.edges(data=False)
+        nodes = self.network.graph.nodes(data=False)
+        edges = self.network.graph.edges(data=False)
         # memory usage constraint
         m = {node: 0 for node in nodes}
         for edge in edges:
@@ -206,7 +206,7 @@ class FlowSolver():
                 self.m[node] >= m[node]
             )
 
-        for u, v, cap in self.network.G.edges(data='channel_capacity'):
+        for u, v, cap in self.network.graph.edges(data='channel_capacity'):
             edge = (u, v) if (u, v) in edges else (v, u)
             self.model.addConstr(
                 self.phi[edge] <= self.c[edge] * cap
@@ -222,11 +222,11 @@ class FlowSolver():
         pc_install = self.network.hw_params['pc_install']
         # memory budget
         self.pv = {}
-        for node in self.network.G.nodes(data=False):
+        for node in self.network.graph.nodes(data=False):
             self.pv[node] = pm * self.m[node]
             self.pv[node] += pm_install * self.Im[node]
         # edge budget
-        edges = self.network.G.edges(data=False)
+        edges = self.network.graph.edges(data=False)
         self.pe = {}
         for edge in edges:
             self.pe[edge] = pc * self.c[edge]
@@ -262,7 +262,7 @@ class FlowSolverRelaxed(FlowSolver):
         # 1 if memory is used, 0 otherwise
         self.Im = {} 
         max_mem = 1e6
-        nodes = self.network.G.nodes(data=False)
+        nodes = self.network.graph.nodes(data=False)
         for node in nodes:
             self.m[node] = self.model.addVar(
                 vtype=gp.GRB.CONTINUOUS,
@@ -280,7 +280,7 @@ class FlowSolverRelaxed(FlowSolver):
         self.c = {}
         self.Ic = {}
         max_channel = 1e6
-        edges = self.network.G.edges(data=False)
+        edges = self.network.graph.edges(data=False)
         for edge in edges:
             self.c[edge] = self.model.addVar(
                 vtype=gp.GRB.CONTINUOUS,
@@ -334,8 +334,8 @@ class FlowSolverNonCost(FlowSolver):
 
 
     def add_resource_constr(self):
-        nodes = self.network.G.nodes(data=False)
-        edges = self.network.G.edges(data=False)
+        nodes = self.network.graph.nodes(data=False)
+        edges = self.network.graph.edges(data=False)
         # memory usage constraint
         m = {node: 0 for node in nodes}
         for edge in edges:
@@ -351,7 +351,7 @@ class FlowSolverNonCost(FlowSolver):
                 self.m[node] <= m[node] + 1
             )
 
-        for u, v, cap in self.network.G.edges(data='channel_capacity'):
+        for u, v, cap in self.network.graph.edges(data='channel_capacity'):
             edge = (u, v) if (u, v) in edges else (v, u)
             self.model.addConstr(
                 self.phi[edge] <= self.c[edge] * cap
@@ -425,7 +425,7 @@ if __name__ == "__main__":
     # net.connect_nearest_component(3)
     # net.plot(None, None, './result/test/fig_cmp2.png')
 
-    print(len(net.G.nodes), len(net.G.edges))
+    print(len(net.graph.nodes), len(net.graph.edges))
 
     solver = FlowSolver(net,output=True)
     # solver = FlowSolverNonCost(net, output=True)
@@ -436,7 +436,7 @@ if __name__ == "__main__":
     if solver.obj_val is not None:
         print("Objective value: ", solver.obj_val)
         plot_optimized_network(
-            solver.network.G, 
+            solver.network.graph, 
             solver.m, solver.c, solver.phi,
             filename='./result/test/fig-solved.png'
             )

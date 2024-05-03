@@ -73,7 +73,7 @@ class PathSolver():
         paths: 'dict[tuple[int], list[tuple[str]]]' = { pair: [] for pair in self.D.keys() }
         for pair in self.D.keys():
             src, dst = pair
-            path_iter = nx.shortest_simple_paths(self.network.G, src, dst, weight=weight)
+            path_iter = nx.shortest_simple_paths(self.network.graph, src, dst, weight=weight)
             for _ in range(self.k):
                 try:
                     path = tuple(next(path_iter))
@@ -134,7 +134,7 @@ class PathSolver():
         self.c = {}
         self.Ic = {}
         max_channel = 1e5
-        for edge in self.network.G.edges:
+        for edge in self.network.graph.edges:
             self.c[edge] = self.model.addVar(vtype=gp.GRB.INTEGER, name=f'c_{edge}')
             self.model.addConstr(self.c[edge] >= 0)
             
@@ -149,7 +149,7 @@ class PathSolver():
 
         # 
         self.phi = {}
-        for edge in self.network.G.edges:
+        for edge in self.network.graph.edges:
             self.phi[edge] = self.model.addVar(
                 vtype=gp.GRB.CONTINUOUS,
                 name=f'phi_{edge}'
@@ -162,7 +162,7 @@ class PathSolver():
         # 1 if memory is used, 0 otherwise
         self.Im = {} 
         max_mem = 1e5
-        nodes = self.network.G.nodes(data=False)
+        nodes = self.network.graph.nodes(data=False)
         for node in nodes:
             self.m[node] = self.model.addVar(
                 vtype=gp.GRB.INTEGER,
@@ -193,7 +193,7 @@ class PathSolver():
         add resource constraints
         """
         # edge constraint
-        for edge in self.network.G.edges(data=False):
+        for edge in self.network.graph.edges(data=False):
             phi = 0
             for pair in self.D.keys():
                 for path in self.paths[pair]:
@@ -205,17 +205,17 @@ class PathSolver():
             self.model.addConstr(self.phi[edge] >= phi)
 
         # channel constraint
-        for edge in self.network.G.edges(data=False):
-            channel_capacity = self.network.G.edges[edge]['channel_capacity']
+        for edge in self.network.graph.edges(data=False):
+            channel_capacity = self.network.graph.edges[edge]['channel_capacity']
             self.model.addConstr(channel_capacity * self.c[edge] >= self.phi[edge])
 
         # memory constraint
-        m = { node: 0 for node in self.network.G.nodes(data=False)}
-        for edge in self.network.G.edges(data=False):
+        m = { node: 0 for node in self.network.graph.nodes(data=False)}
+        for edge in self.network.graph.edges(data=False):
             u, v = edge
             m[u] += self.phi[edge]
             m[v] += self.phi[edge]
-        for node in self.network.G.nodes(data=False):
+        for node in self.network.graph.nodes(data=False):
             self.model.addConstr(self.m[node] >= m[node])
 
     def add_budget_def(self):
@@ -228,13 +228,13 @@ class PathSolver():
         pc_install = self.network.hw_params['pc_install']
         # memory budget
         self.pv = {}
-        for node in self.network.G.nodes(data=False):
+        for node in self.network.graph.nodes(data=False):
             # per slot cost
             self.pv[node] = pm * self.m[node]
             # installation cost
             self.pv[node] += pm_install * self.Im[node]
         # edge budget
-        edges = self.network.G.edges(data=False)
+        edges = self.network.graph.edges(data=False)
         self.pe = {}
         for edge in edges:
             self.pe[edge] = pc * self.c[edge]
@@ -262,7 +262,7 @@ class PathSolverNonCost(PathSolver):
         add resource constraints
         """
         # edge constraint
-        for edge in self.network.G.edges(data=False):
+        for edge in self.network.graph.edges(data=False):
             phi = 0
             for pair in self.D.keys():
                 for path in self.paths[pair]:
@@ -274,18 +274,18 @@ class PathSolverNonCost(PathSolver):
             self.model.addConstr(self.phi[edge] >= phi)
 
         # channel constraint
-        for edge in self.network.G.edges(data=False):
-            channel_capacity = int(self.network.G.edges[edge]['channel_capacity'])
+        for edge in self.network.graph.edges(data=False):
+            channel_capacity = int(self.network.graph.edges[edge]['channel_capacity'])
             self.model.addConstr(self.phi[edge] <= channel_capacity * self.c[edge])
             self.model.addConstr(self.phi[edge] >= channel_capacity * (self.c[edge] - 1))
 
         # memory constraint
-        m = { node: 0 for node in self.network.G.nodes(data=False)}
-        for edge in self.network.G.edges(data=False):
+        m = { node: 0 for node in self.network.graph.nodes(data=False)}
+        for edge in self.network.graph.edges(data=False):
             u, v = edge
             m[u] += self.phi[edge]
             m[v] += self.phi[edge]
-        for node in self.network.G.nodes(data=False):
+        for node in self.network.graph.nodes(data=False):
             self.model.addConstr(self.m[node] >= m[node])
             self.model.addConstr(self.m[node] <= m[node] + 1)
 
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     vset = VertexSet(vsrc)
     task = Task(vset, 1.0, (100, 101))
     net = Topology(task=task)
-    city_num = len(net.G.nodes)
+    city_num = len(net.graph.nodes)
 
     net.connect_nodes_nearest(10, 1)
     net.connect_nodes_radius(200, 1)
@@ -346,7 +346,7 @@ if __name__ == "__main__":
     
     print("Objective value: ", solver.obj_val)
     plot_optimized_network(
-        solver.network.G, 
+        solver.network.graph, 
         solver.m, solver.c, solver.phi,
         filename='./result/path/fig-solved.png'
         )

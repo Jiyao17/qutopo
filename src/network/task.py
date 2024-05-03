@@ -10,19 +10,19 @@ class Task():
 
     def __init__(self,
             vset: VertexSet = VertexSet(),
-            demanding_fraction: float = 0.2,
+            demand_frac: float = 0.2,
             demand_range: tuple = (10, 11),
         ) -> None:
 
         self.vset = vset
-        self.demading_fraction = demanding_fraction
+        self.demand_frac = demand_frac
         self.demand_range = demand_range
 
         self.U = vset.vertices
         self.D = {}
         
         self.pairs = self.get_pairs(self.U.keys())
-        dpair_num = int(len(self.pairs) * demanding_fraction)
+        dpair_num = int(len(self.pairs) * demand_frac)
         indices = np.arange(len(self.pairs))
         dpairs_indices = np.random.choice(indices, dpair_num, replace=False)
         dpairs = [self.pairs[i] for i in dpairs_indices]

@@ -28,15 +28,20 @@ class VertexSet():
         # vertices with latitude and longitude
         # dict[str, Tuple[float, float]], {id: (latitude, longitude)}
         self.vertices = {}
+        # self.edges = {}
         # read the ground network from the graphml file
         filename = vsrc.value
         path = os.path.join(os.path.dirname(__file__), filename)
-        self.G: nx.MultiGraph = nx.read_graphml(path, force_multigraph=True)
+        self.graph: nx.MultiGraph = nx.read_graphml(path, force_multigraph=True)
         # extract
-        for node in self.G.nodes(data=True):
-            id = int(node[0])
-            lat, lon= node[1]['Latitude'], node[1]['Longitude']
+        for node, data in self.graph.nodes(data=True):
+            id = int(node)
+            lat, lon= data['Latitude'], data['Longitude']
             self.vertices[id] = (lat, lon)
+
+        # for u, v, l in self.graph.edges(data='Length', keys=False):
+        #     u, v = int(u), int(v)
+        #     self.edges[(u, v)] = l
 
 
 
