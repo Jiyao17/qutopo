@@ -10,7 +10,8 @@
             "request": "launch",
             // "module": "src.network.network",
             // "module": "src.solver.path",
-            "module": "src.solver.iterative",
+            "module": "src.solver.greedy",
+            // "module": "src.solver.iterative",
             // "module": "src.network.vertex",
             // "module": "src.network.task",
 

@@ -9,9 +9,18 @@ import numpy as np
 
 
 def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, labeled=False, filename: str='./result/fig.png'):
+    """
+    m: dict[int, int]
+        - memory allocation
+    c: dict[tuple[int], int]
+        - channel allocation
+    phi: dict[tuple[int], float]
+        - channel utilization
+    """
+    
     graph = deepcopy(graph)
     
-    empty_nodes = [ node for node in m if m[node].x == 0]
+    empty_nodes = [ node for node in m if m[node] == 0]
     graph.remove_nodes_from(empty_nodes)
     nodes = graph.nodes(data=False)
     edges = graph.edges(data=False)
@@ -21,11 +30,11 @@ def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, labeled=Fa
 
     # if edge channel > 0, bold the edge
     if c is not None:
-        edge_widths = [ 5 if c[edge].x > 0 else 1 for edge in edges]
+        edge_widths = [ 5 if c[edge] > 0 else 1 for edge in edges]
         edge_labels = {}
         for edge in edges:
-            ch = int(c[edge].x)
-            p = int(np.ceil(phi[edge].x))
+            ch = c[edge]
+            p = int(np.ceil(phi[edge]))
             if ch > 0:
                 edge_labels[edge] = f'{ch}-{p}'
                 # edge_labels[edge] = f'{p}'
@@ -33,8 +42,8 @@ def plot_optimized_network(graph: nx.Graph, m=None, c=None, phi=None, labeled=Fa
                 edge_labels[edge] = ''
     # if node memory > 0, mark the node
     if m is not None:
-        node_colors = ['red' if m[node].x > 0 else color for node, color in zip(nodes, node_colors)]
-        node_labels = {node: int(m[node].x) if m[node].x > 0 else '' for node in nodes}
+        node_colors = ['red' if m[node] > 0 else color for node, color in zip(nodes, node_colors)]
+        node_labels = {node: m[node] if m[node] > 0 else '' for node in nodes}
     # node_sizes = [ 200 if graph.nodes[node]['original'] else 50 for node in graph.nodes]
     pos: dict = nx.get_node_attributes(graph, 'pos') 
     pos = {node: (lon, lat) for node, (lat, lon) in pos.items()}

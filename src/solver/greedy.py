@@ -1,12 +1,10 @@
 
 
 from copy import deepcopy
-
+import random
 
 import numpy as np
 import networkx as nx
-
-
 
 from ..network import VertexSet, VertexSource, Task, Topology, complete_swap, sequential_swap
 from ..utils.plot import plot_nx_graph, plot_optimized_network
@@ -82,29 +80,30 @@ class GreedySolver():
         swap_prob = self.network.hw_params['swap_prob']
         
         # alpha[(u, p, e)] = # of entanglements used on edge e for pair u via path p
+        alpha = {}
         for pair in self.D.keys():
             for path in paths[pair]:
                 edges = [(path[i], path[i+1]) for i in range(len(path)-1)]
                 
                 costs = swap_func([1,] * len(edges), swap_prob)
                 for i, edge in enumerate(edges):
-                    self.alpha[(pair, path, edge)] = costs[i]
+                    alpha[(pair, path, edge)] = costs[i]
 
         # beta[(u, p, v)] = # of memory slots used at node v for pair u via path p
-        self.beta = {}
+        beta = {}
         for pair in self.D.keys():
             for path in paths[pair]:
                 for i, node in enumerate(path):
                     if i == 0:
-                        self.beta[(pair, path, node)] = self.alpha[(pair, path, (node, path[1]))]
+                        beta[(pair, path, node)] = alpha[(pair, path, (node, path[1]))]
                     elif i == len(path) - 1:
-                        self.beta[(pair, path, node)] = self.alpha[(pair, path, (path[-2], node))]
+                        beta[(pair, path, node)] = alpha[(pair, path, (path[-2], node))]
                     else:
-                        mem_left = self.alpha[(pair, path, (path[i-1], node))]
-                        mem_right = self.alpha[(pair, path, (node, path[i+1]))]
-                        self.beta[(pair, path, node)] = mem_left + mem_right
+                        mem_left = alpha[(pair, path, (path[i-1], node))]
+                        mem_right = alpha[(pair, path, (node, path[i+1]))]
+                        beta[(pair, path, node)] = mem_left + mem_right
                         
-        return self.alpha, self.beta
+        return alpha, beta
 
     def try_path(self, path, demand):
         """
@@ -123,12 +122,13 @@ class GreedySolver():
 
         edges = [(path[i], path[i+1]) for i in range(len(path)-1)]
         for edge in edges:
-            channel_num = self.c[edge]
+            channel_num = self.c[edge] if edge in self.c else self.c[(edge[1], edge[0])]
             channel_cap = self.network.graph.edges[edge]['channel_capacity']
+            edge_length = self.network.graph.edges[edge]['length']
             rem = channel_cap * channel_num - self.alpha[(pair, path, edge)] * demand
             if rem < 0:
                 dchannels[edge] = int(np.ceil(abs(-rem) / channel_cap))
-                edge_cost[edge] = dchannels[edge] * self.network.hw_params['pc']
+                edge_cost[edge] = dchannels[edge] * self.network.hw_params['pc'] * edge_length
             else:
                 dchannels[edge] = 0
                 edge_cost[edge] = 0
@@ -137,7 +137,7 @@ class GreedySolver():
                 edge_cost[edge] += self.network.hw_params['pc_install']
 
         for node in path:
-            dmems[node] = self.beta[node] * demand
+            dmems[node] = self.beta[(pair, path, node)] * demand
             node_cost[node] = dmems[node] * self.network.hw_params['pm']
 
             if self.m[node] == 0 and dmems[node] > 0:
@@ -213,12 +213,9 @@ class GreedySolver():
         pairs = list(self.D.keys())
         demands = list(self.D.values())
 
-        for i in range(len(pairs)):
-            if max(demands) == 0:
-                break
-            if demands[i] == 0:
-                continue
-            
+        i = -1
+        while max(demands) > 0:
+            i = (i + 1) % len(pairs)
             dpair = pairs[i]
             demands[i] -= ddemand
             demand = ddemand
@@ -228,7 +225,8 @@ class GreedySolver():
             best_cost = np.inf
             if criterion == 'resource':
                 for path in self.paths[dpair]:
-                    resource = sum([self.alpha[(dpair, path, edge)] for edge in path])
+                    edges = [(path[i], path[i+1]) for i in range(len(path)-1)]
+                    resource = sum([self.alpha[(dpair, path, edge)] for edge in edges])
                     if resource < best_resource:
                         best_path = path
                         best_resource = resource
@@ -248,15 +246,15 @@ class GreedySolver():
             self.x[(dpair, best_path)] += demand
             edges = [(best_path[i], best_path[i+1]) for i in range(len(best_path)-1)]
             for edge in edges:
-                self.c[edge] += dchannels[edge]
-                self.phi[edge] += self.alpha[(dpair, best_path, edge)]
+                if edge in self.c:
+                    self.c[edge] += dchannels[edge] if edge in dchannels else dchannels[(edge[1], edge[0])]
+                    self.phi[edge] += self.alpha[(dpair, best_path, edge)]
+                else:
+                    self.c[(edge[1], edge[0])] += dchannels[edge] if edge in dchannels else dchannels[(edge[1], edge[0])]
+                    self.phi[(edge[1], edge[0])] += self.alpha[(dpair, best_path, edge)]
             for node in best_path:
                 self.m[node] += dmems[node]
         
-
-
-
-
     def solve(self):
         
         if self.greed_opt == 'resource':
@@ -265,3 +263,33 @@ class GreedySolver():
             self.optimize('cost')
 
         self.obj_val = self.calc_budget()
+
+
+if __name__ == "__main__":
+    random.seed(0)
+    np.random.seed(0)
+    vsrc = VertexSource.NOEL
+    vset = VertexSet(vsrc)
+    task = Task(vset, 1.0, (100, 101))
+    net = Topology(task=task)
+
+    city_num = len(net.graph.nodes)
+    net.connect_nodes_nearest(10, 1)
+    net.connect_nodes_radius(200, 1)
+    net.connect_nearest_component(1)
+    net.segment_edges(200, 200, 1)
+    net.plot(None, None, './result/path/fig.png')
+
+    k = 20
+    # solver = GreedySolver(net, k, 'length', 'resource')
+    solver = GreedySolver(net, k, 'length', 'cost')
+    solver.solve()
+
+    
+    print("Objective value: ", solver.obj_val)
+    plot_optimized_network(
+        solver.network.graph, 
+        solver.m, solver.c, solver.phi,
+        filename='./result/path/fig-solved.png'
+        )
+
