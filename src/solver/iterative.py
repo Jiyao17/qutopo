@@ -27,18 +27,37 @@ class IterSolver:
 
         # add random nodes
         city_num = len(self.net.U.items())
-        self.net.add_nodes_random(city_num, rd)
+        # self.net.add_nodes_random(city_num, rd)
+        # self.net.add_nodes_random_on_edges(rd)
+        if rd == 1:
+            self.net.connect_nodes_nearest(5, rd)
+            self.net.segment_edges(200, 200, rd)
+            self.net.connect_nodes_radius(200, rd)
+            self.net.connect_nearest_component(rd)
+        else:
+            # add around used nodes
+            used_nodes = [node for node in self.net.graph.nodes if self.solver.m[node].x > 0]
+            # do not add around original nodes
+            used_nodes = [node for node in used_nodes if node not in self.net.U]
+            self.net.add_nodes_random_nearby(used_nodes, 50, 5, rd)
+            # self.net.add_nodes_random_nearby(used_nodes, 20, 3, rd)
+
+            indices = np.arange(len(self.net.pairs))
+            pair_num = len(self.net.U.items())
+            pairs = [self.net.pairs[i] for i in np.random.choice(indices, pair_num, replace=False)]
+            self.net.add_nodes_random_between_pairs(pairs, rd)
+
         # self.net.update_edges()
-        # self.net.plot(None, None, f'./result/path/fig_random_{rd}.png')
+        self.net.plot(None, None, f'./result/iterative/fig_random_{rd}.png')
         
-        self.net.connect_nodes_nearest(10, rd)
-        # self.net.plot(None, None, f'./result/path/fig_nearest_{rd}.png')
-        self.net.segment_edges(200, 200, rd)
+        self.net.connect_nodes_nearest(5, rd)
+        # self.net.plot(None, None, f'./result/iterative/fig_nearest_{rd}.png')
+        # self.net.segment_edges(200, 200, rd)
         self.net.connect_nodes_radius(200, rd)
         self.net.connect_nearest_component(rd)
-        # self.net.plot(None, None, f'./result/path/fig_cluster_{rd}.png')
+        # self.net.plot(None, None, f'./result/iterative/fig_cluster_{rd}.png')
 
-        # net.plot(None, None, f'./result/path/fig_segment_{rd}.png')
+        # net.plot(None, None, f'./result/iterative/fig_segment_{rd}.png')
 
     def del_nodes(self, rd: int=1):
         """
@@ -47,13 +66,34 @@ class IterSolver:
             -optimal solution
         """
         nodes = list(self.net.graph.nodes(data=True))
+        self.best_obj = np.inf
+        self.best_nodes = []
+        # update best nodes
+        if self.solver.obj_val < self.best_obj:
+            self.best_obj = self.solver.obj_val
+            self.best_nodes = [node for node, data in nodes if int(self.solver.m[node].x) > 0]
+
         for node, data in nodes:
             m = int(self.solver.m[node].x)
-            if m == 0 and data['group'] <= rd - 3 and data['group'] != 0:
-                self.net.graph.remove_node(node)
+            # mark utilized nodes
+            if 'marked' not in data:
+                data['marked'] = False
+            if m > 0:
+                data['marked'] = True
+
+            # remove non-original nodes
+            if data['group'] != 0 and node not in self.best_nodes:
+                # not used in this round 
+                if m == 0:
+                    # never used before
+                    if data['marked'] == False:
+                        self.net.graph.remove_node(node)
+                    # used before but expired
+                    elif data['group'] <= rd - 5:
+                        self.net.graph.remove_node(node)
             
         # net.cluster_inter_nodes(city_num, set([i]))
-        # net.plot(None, None, f'./result/path/fig_merge_{rd}.png')
+        # net.plot(None, None, f'./result/iterative/fig_merge_{rd}.png')
 
         # self.net.connect_nearest_component(rd)
 
@@ -63,14 +103,14 @@ class IterSolver:
         """
         past_rounds = set()
         vals = []
+        self.net.plot(None, None, f'./result/iterative/fig_init.png')
         for i in range(1, round_num + 1):
-            # if i > 0:
             self.add_nodes(i)
             # else:
             #     self.net.make_clique(list(self.net.graph.nodes), 1)
             #     self.net.segment_edges(150, 150, 1)
                 
-            self.net.plot(None, None, f'./result/path/fig_add_{i}.png')
+            self.net.plot(None, None, f'./result/iterative/fig_add_{i}.png')
 
             # nodes = list(self.net.G.nodes(data=True))
             # for node in nodes:
@@ -80,21 +120,27 @@ class IterSolver:
             #     assert lat_min <= lat <= lat_max
             #     assert lon_min <= lon <= lon_max
             # self.net.connect_nearest_component(i)
+            # self.solver = self.SolverClass(self.net, 10, 'length', output=False)
             self.solver = self.SolverClass(self.net, 10, output=False)
             self.solver.solve()
 
-            print(f"Round {i} objective value: {self.solver.obj_val}.")
-            m = {node: int(self.solver.m[node].x) for node in self.solver.m}
-            c = {edge: int(self.solver.c[edge].x) for edge in self.solver.c}
-            phi = {edge: self.solver.phi[edge].x for edge in self.solver.phi}
-            plot_optimized_network(
-                self.solver.network.graph, 
-                m, c, phi,
-                filename=f'./result/path/fig_solved_{i}.png'
-                )
+            try:
+                print(f"Round {i} objective value: {self.solver.obj_val}.")
+                m = {node: int(self.solver.m[node].x) for node in self.solver.m}
+                c = {edge: int(self.solver.c[edge].x) for edge in self.solver.c}
+                phi = {edge: self.solver.phi[edge].x for edge in self.solver.phi}
+                plot_optimized_network(
+                    self.solver.network.graph, 
+                    m, c, phi,
+                    filename=f'./result/iterative/fig_solved_{i}.png'
+                    )
+            except AttributeError:
+                print(f"Round {i} objective value: None.")
+                pass
 
             self.del_nodes(i)
-            self.net.plot(None, None, f'./result/path/fig_del_{i}.png')
+            # self.net.cluster_inter_nodes(city_num, set(past_rounds))
+            self.net.plot(None, None, f'./result/iterative/fig_del_{i}.png')
 
             past_rounds.add(i)
             vals.append(self.solver.obj_val)
@@ -105,14 +151,14 @@ class IterSolver:
             plt.plot(rds, vals)
             plt.xlabel('rounds')
             plt.ylabel('objective value')
-            plt.savefig('./result/path/fig_vals.png')
+            plt.savefig('./result/iterative/fig_vals.png')
 
             plt.close()
 
 
 
 if __name__ == "__main__":
-    seed = 5
+    seed = 0
     random.seed(seed)
     np.random.seed(seed)
 
@@ -121,6 +167,13 @@ if __name__ == "__main__":
     task = Task(vset, 1.0, (100, 101))
     net = Topology(task=task)
     city_num = len(net.graph.nodes)
+
+    # net.connect_nodes_nearest(10, 1)
+    # net.segment_edges(200, 200, 1)
+    # net.connect_nodes_radius(200, 1)
+    # net.connect_nearest_component(1)
+    net.plot(None, None, './result/iterative/fig.png')
+
 
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)

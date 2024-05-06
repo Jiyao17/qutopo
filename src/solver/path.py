@@ -259,6 +259,7 @@ class PathSolver():
         except AttributeError:
             print("Model is not solved.")
             print("Probably infeasible or unbounded.")
+            raise AttributeError
 
 
 
@@ -329,7 +330,7 @@ class PathSolverMinResource(PathSolverNonCost):
 
 
 if __name__ == "__main__":
-    seed = 11
+    seed = 66
     random.seed(seed)
     np.random.seed(seed)
 
@@ -339,14 +340,14 @@ if __name__ == "__main__":
     net = Topology(task=task)
     city_num = len(net.graph.nodes)
 
-    net.connect_nodes_nearest(10, 1)
+    net.connect_nodes_nearest(5, 1)
     net.segment_edges(200, 200, 1)
     net.connect_nodes_radius(200, 1)
     net.connect_nearest_component(1)
     net.plot(None, None, './result/path/fig.png')
 
     k = 10
-    solver = PathSolver(net, k, 'length', output=True)
+    solver = PathSolver(net, k, output=True)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
     solver.solve()

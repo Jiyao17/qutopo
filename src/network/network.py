@@ -10,7 +10,7 @@ from ..utils.plot import plot_nx_graph
 
 
 HWParam = {
-    'swap_prob': 1, # swap probability
+    'swap_prob': 0.5, # swap probability
     'fiber_loss': 0.2, # fiber loss
     'photon_rate': 1e4, # photon rate
     'pm': 1, # memory price per slot
@@ -258,6 +258,58 @@ class Topology:
         self.update_edges()
         self.update_pairs()
 
+    def cluster_nearby_nodes(self, k: int=3, groups: set={1}): 
+        """
+        merge close nodes with group in groups
+        the group attribute of new nodes is also set to group
+        1. cluster the nodes by k-means
+        2. merge the nodes in the same cluster
+        """
+        
+        nodes = [ node for node in self.graph.nodes(data=False) 
+                    if self.graph.nodes[node]['group'] in groups]
+        if k > len(nodes):
+            k = len(nodes)
+        if k == 0:
+            return
+        # pick k random nodes as initial cluster centers
+        initial_center_nodes = np.random.choice(nodes, k, replace=False)
+        centers = np.array([self.graph.nodes[node]['pos'] for node in initial_center_nodes])
+        clusters: 'list[list]'= [ [ ] for _ in range(k)]
+        new_centers = np.zeros((k, 2))
+        # k-means
+        while True:
+            for node in nodes:
+                pos = self.graph.nodes[node]['pos']
+                min_dist = np.inf
+                min_center = 0
+                for i, center in enumerate(centers):
+                    dist = geo.distance(center, pos).km
+                    if dist < min_dist:
+                        min_dist = dist
+                        min_center = i
+                clusters[min_center].append(node)
+            for i, cluster in enumerate(clusters):
+                if len(cluster) == 0:
+                    new_centers[i] = centers[i]
+                else:
+                    new_centers[i] = np.mean([self.graph.nodes[node]['pos'] for node in cluster], axis=0)
+            if np.allclose(centers, new_centers):
+                break
+            centers = new_centers
+            clusters = [ [ ] for _ in range(k)]
+            
+        # remove all intermediate nodes
+        for node in nodes:
+            self.graph.remove_node(node)
+        # add new nodes
+        for i, cluster in enumerate(clusters):
+            self.graph.add_node(next(self.nid), pos=centers[i], group=max(groups) + 1)
+
+
+        self.update_edges()
+        self.update_pairs()
+
     def add_nodes_random(self, num: int, group: int=0):
         """
         add random points to the network
@@ -266,6 +318,43 @@ class Topology:
             lat = np.random.uniform(self.area['lat_min'], self.area['lat_max'])
             lon = np.random.uniform(self.area['lon_min'], self.area['lon_max'])
             self.graph.add_node(next(self.nid), pos=(lat, lon), group=group)
+
+        self.update_pairs()
+
+    def add_nodes_random_nearby(self, nodes: list[int], radius: float, num: int, group: int=0):
+        """
+        add random num points around given nodes, within radius
+        """
+
+        for node in nodes:
+            lat, lon = self.graph.nodes[node]['pos']
+            for i in range(num):
+                # a random bearing
+                bearing = np.random.uniform(0, 360)
+                # a random distance
+                distance = np.random.uniform(0, radius)
+                point = geo.distance(kilometers=distance).destination((lat, lon), bearing)
+                lat_new, lon_new = point.latitude, point.longitude
+                self.graph.add_node(next(self.nid), pos=(lat_new, lon_new), group=group)
+
+        self.update_pairs()
+
+
+
+    def add_nodes_random_between_pairs(self, pairs, group: int=0):
+        """
+        add random points to the network
+        """
+        for u, v in pairs:
+            u_lat, u_lon = self.graph.nodes[u]['pos']
+            v_lat, v_lon = self.graph.nodes[v]['pos']
+            length = geo.distance((u_lat, u_lon), (v_lat, v_lon)).km
+            num = int(np.ceil(length // 150))
+            for i in range(num):
+                frac = np.random.uniform(0, 1)
+                lat = u_lat + frac * (v_lat - u_lat)
+                lon = u_lon + frac * (v_lon - u_lon)
+                self.graph.add_node(next(self.nid), pos=(lat, lon), group=group)
 
         self.update_pairs()
 
