@@ -46,22 +46,28 @@ class PathSolver():
         """
         build the model
         """
-
-        print("Building the model...")
+        if self.output:
+            print("Building the model...")
         # find k shortest paths between all pairs in D
         # and pre-solve the paths
-        print("searching paths...")
+        if self.output:
+            print("searching paths...")
         self.paths = self.all_pairs_YenKSP(weight=edge_weight)
-        print("solving paths...")
+
+        if self.output:
+            print("solving paths...")
         self.alpha, self.beta = self.solve_paths(self.paths)
 
-        print("building linear model...")
+        if self.output:
+            print("building linear model...")
+
         self.add_variables()
         self.add_resource_constr()
         self.add_budget_def()
         self.add_demand_constr()
         
-        print("Model building done.")
+        if self.output:
+            print("Model building done.")
 
     def all_pairs_YenKSP(self, weight=None):
         """
@@ -323,8 +329,10 @@ class PathSolverMinResource(PathSolverNonCost):
 
 
 if __name__ == "__main__":
-    random.seed(0)
-    np.random.seed(0)
+    seed = 11
+    random.seed(seed)
+    np.random.seed(seed)
+
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
     task = Task(vset, 1.0, (100, 101))
@@ -332,22 +340,24 @@ if __name__ == "__main__":
     city_num = len(net.graph.nodes)
 
     net.connect_nodes_nearest(10, 1)
+    net.segment_edges(200, 200, 1)
     net.connect_nodes_radius(200, 1)
     net.connect_nearest_component(1)
-    net.segment_edges(200, 200, 1)
     net.plot(None, None, './result/path/fig.png')
 
-    k = 20
-    solver = PathSolver(net, k, 'length', output=False)
+    k = 10
+    solver = PathSolver(net, k, 'length', output=True)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
     solver.solve()
 
-    
+    m = { node: int(m.x) for node, m in solver.m.items() }
+    c = { edge: int(c.x) for edge, c in solver.c.items() }
+    phi = { edge: phi.x for edge, phi in solver.phi.items() }
     print("Objective value: ", solver.obj_val)
     plot_optimized_network(
         solver.network.graph, 
-        solver.m, solver.c, solver.phi,
+        m, c, phi,
         filename='./result/path/fig-solved.png'
         )
 

@@ -1,7 +1,8 @@
 
 import random
-import numpy as np
+import time
 
+import numpy as np
 import networkx as nx
 import gurobipy as gp
 
@@ -41,10 +42,33 @@ class FlowSolver():
         """
         build the linear model
         """
+        print("Building the model...")
+
+        print("Adding variables...")
+        start = time.time()
         self.add_variables()
+        end = time.time()
+        print(f"Time spent: {end - start:.2f} seconds")
+
+        print("Adding flow constraints...")
+        start = time.time()
         self.add_distribution_constr()
+        end = time.time()
+        print(f"Time spent: {end - start:.2f} seconds")
+
+        print("Adding resource constraints...")
+        start = time.time()
         self.add_resource_constr()
+        end = time.time()
+        print(f"Time spent: {end - start:.2f} seconds")
+
+        print("Adding budget definition...")
+        start = time.time()
         self.add_budget_def()
+        end = time.time()
+        print(f"Time spent: {end - start:.2f} seconds")
+
+        print("Model building done.")
 
     def add_variables(self):
         """
@@ -406,28 +430,19 @@ if __name__ == "__main__":
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 0.2, (100, 101))
+    task = Task(vset, 1.0, (100, 101))
     net = Topology(task=task)
+    city_num = len(net.graph.nodes)
 
     net.connect_nodes_nearest(5, 1)
+    net.connect_nodes_radius(200, 1)
     net.connect_nearest_component(1)
-    net.plot(None, None, './result/test/fig_cmp.png')
-
-    net.segment_edges(150, 150, 2)
-    net.plot(None, None, './result/test/fig_segment.png')
-
-    # k = len(net.G.nodes) - len(vset.vertices)
-    # k = int(np.sqrt(k))
-    # net.cluster_inter_nodes(10, 2)
-    # net.plot(None, None, './result/test/fig_cluster.png')
-
-    # net.connect_nearest_nodes(5, 3)
-    # net.connect_nearest_component(3)
-    # net.plot(None, None, './result/test/fig_cmp2.png')
+    net.segment_edges(200, 200, 1)
+    net.plot(None, None, './result/flow/fig.png')
 
     print(len(net.graph.nodes), len(net.graph.edges))
 
-    solver = FlowSolver(net,output=True)
+    solver = FlowSolver(net, 600, output=True)
     # solver = FlowSolverNonCost(net, output=True)
     # solver = FlowSolverMinResource(net, output=True)
     
@@ -435,9 +450,12 @@ if __name__ == "__main__":
     
     if solver.obj_val is not None:
         print("Objective value: ", solver.obj_val)
+        m = { node: int(m.x) for node, m in solver.m.items() }
+        c = { edge: int(c.x) for edge, c in solver.c.items() }
+        phi = { edge: phi.x for edge, phi in solver.phi.items() }
         plot_optimized_network(
             solver.network.graph, 
-            solver.m, solver.c, solver.phi,
+            m=m, c=c, phi=phi,
             filename='./result/test/fig-solved.png'
             )
 

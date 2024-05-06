@@ -33,7 +33,7 @@ class IterSolver:
         
         self.net.connect_nodes_nearest(10, rd)
         # self.net.plot(None, None, f'./result/path/fig_nearest_{rd}.png')
-        self.net.segment_edges(180, 180, rd)
+        self.net.segment_edges(200, 200, rd)
         self.net.connect_nodes_radius(200, rd)
         self.net.connect_nearest_component(rd)
         # self.net.plot(None, None, f'./result/path/fig_cluster_{rd}.png')
@@ -80,13 +80,16 @@ class IterSolver:
             #     assert lat_min <= lat <= lat_max
             #     assert lon_min <= lon <= lon_max
             # self.net.connect_nearest_component(i)
-            self.solver = self.SolverClass(self.net, 20, output=False)
+            self.solver = self.SolverClass(self.net, 10, output=False)
             self.solver.solve()
 
             print(f"Round {i} objective value: {self.solver.obj_val}.")
+            m = {node: int(self.solver.m[node].x) for node in self.solver.m}
+            c = {edge: int(self.solver.c[edge].x) for edge in self.solver.c}
+            phi = {edge: self.solver.phi[edge].x for edge in self.solver.phi}
             plot_optimized_network(
                 self.solver.network.graph, 
-                self.solver.m, self.solver.c, self.solver.phi,
+                m, c, phi,
                 filename=f'./result/path/fig_solved_{i}.png'
                 )
 
@@ -108,15 +111,11 @@ class IterSolver:
 
 
 
-
-
-
-
-
 if __name__ == "__main__":
-    seed = 1
+    seed = 5
     random.seed(seed)
     np.random.seed(seed)
+
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
     task = Task(vset, 1.0, (100, 101))

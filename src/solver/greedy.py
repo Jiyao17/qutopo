@@ -16,9 +16,9 @@ class GreedySolver():
     """
     def __init__(self, 
         network: Topology, 
-        k: int=5, 
-        weight: str='length',
-        greedy_opt: str='resource',
+        k: int=10, 
+        weight: str=None,
+        greedy_opt: str='cost',
         ) -> None:
         """
         network: Topology
@@ -28,7 +28,7 @@ class GreedySolver():
         weight: str, optional (default='length')
             - the weight to consider for path selection
             - 'length': shortest path length
-            - 'hop': least hops
+            - None: least hops
         greedy_opt: str, optional (default='resource')
             - the optimization objective
             - 'resource': minimize resource usage
@@ -127,7 +127,7 @@ class GreedySolver():
             edge_length = self.network.graph.edges[edge]['length']
             rem = channel_cap * channel_num - self.alpha[(pair, path, edge)] * demand
             if rem < 0:
-                dchannels[edge] = int(np.ceil(abs(-rem) / channel_cap))
+                dchannels[edge] = int(np.ceil(abs(rem) / channel_cap))
                 edge_cost[edge] = dchannels[edge] * self.network.hw_params['pc'] * edge_length
             else:
                 dchannels[edge] = 0
@@ -194,7 +194,8 @@ class GreedySolver():
         edges = self.network.graph.edges(data=False)
         self.pe = {}
         for edge in edges:
-            self.pe[edge] = pc * self.c[edge]
+            length = self.network.graph.edges[edge]['length']
+            self.pe[edge] = pc * self.c[edge] * length
             self.pe[edge] += pc_install if self.c[edge] > 0 else 0
 
         self.budget = sum(self.pv.values()) + sum(self.pe.values())
@@ -266,23 +267,25 @@ class GreedySolver():
 
 
 if __name__ == "__main__":
-    random.seed(0)
-    np.random.seed(0)
+    seed = 0
+    random.seed(seed)
+    np.random.seed(seed)
+
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
     task = Task(vset, 1.0, (100, 101))
     net = Topology(task=task)
 
     city_num = len(net.graph.nodes)
-    net.connect_nodes_nearest(10, 1)
+    net.connect_nodes_nearest(5, 1)
     net.connect_nodes_radius(200, 1)
     net.connect_nearest_component(1)
     net.segment_edges(200, 200, 1)
-    net.plot(None, None, './result/path/fig.png')
+    net.plot(None, None, './result/greedy/fig.png')
 
     k = 20
-    # solver = GreedySolver(net, k, 'length', 'resource')
-    solver = GreedySolver(net, k, 'length', 'cost')
+    # solver = GreedySolver(net, k, None, 'resource')
+    solver = GreedySolver(net, k, None, 'cost')
     solver.solve()
 
     
@@ -290,6 +293,6 @@ if __name__ == "__main__":
     plot_optimized_network(
         solver.network.graph, 
         solver.m, solver.c, solver.phi,
-        filename='./result/path/fig-solved.png'
+        filename='./result/greedy/fig-solved.png'
         )
 

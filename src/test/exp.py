@@ -14,8 +14,8 @@ from ..utils.plot import plot_nx_graph, plot_optimized_network
 
 def test_path_solver(
         network: Topology, 
-        cluster_nums: 'list[int]'=[1, 2, 3, 4, 5],
-        path_nums: 'list[int]'=[1, 2, 3, 4, 5],
+        cluster_nums: 'list[int]'=range(1, 11),
+        path_nums: 'list[int]'=range(1, 11),
         ):
 
     times = np.zeros((len(cluster_nums) + 1, len(path_nums) + 1))
@@ -25,12 +25,13 @@ def test_path_solver(
         for j, path_num in enumerate(path_nums):
             net = copy.deepcopy(network)
 
-            net.connect_nodes_nearest(cluster_num)
-            net.connect_nearest_component()
-            net.segment_edges(150, 150)
+            net.connect_nodes_nearest(cluster_num, 1)
+            # net.connect_nodes_radius(200, 1)
+            net.connect_nearest_component(1)
+            net.segment_edges(200, 200, 1)
 
             start = time.time()
-            solver = PathSolver(net, path_num)
+            solver = PathSolver(net, path_num, 'length')
             solver.solve()
             end = time.time()
 
@@ -48,9 +49,11 @@ def test_path_solver(
     ax.set_xlabel('Cluster Number')
     ax.set_ylabel('Shortest Path Number')
     ax.set_zlabel('Objective Value')
+    # set z max to 5*min
+    # ax.set_zlim(0, 5*np.min(objs[1:, 1:]))
     # rotate the axes and update
-    ax.view_init(30, 45)
-    plt.savefig(f'./result/path/fig_obj_{vsrc.name}.png')
+    ax.view_init(30, 70)
+    plt.savefig(f'./result/path/fig_obj_{network.task.vset.vsrc.name}.png')
 
 
     # plot 3d figure for time
@@ -62,29 +65,26 @@ def test_path_solver(
     ax.set_ylabel('Shortest Path Number')
     ax.set_zlabel('Time')
     ax.view_init(30, 45)
-    plt.savefig(f'./result/path/fig_time_{vsrc.name}.png')
+    plt.savefig(f'./result/path/fig_time_{network.task.vset.vsrc.name}.png')
 
     return objs, times
 
 
 def test_flow_solver(
-        vsrc: VertexSource,
-        cluster_nums: 'list[int]'=[1, 2, 3, 4, 5],
+        network: Topology,
+        cluster_nums: 'list[int]'=range(1, 11),
         ):
-    
-    vset = VertexSet(vsrc)
-    task = Task(vset, 1, (100, 101))
-    net = Topology(task=task)
 
     objs = np.zeros((len(cluster_nums) + 1, ))
     times = np.zeros((len(cluster_nums) + 1, ))
 
     for i, cluster_num in enumerate(cluster_nums):
-        net = copy.deepcopy(net)
+        net = copy.deepcopy(network)
 
-        net.connect_nodes_nearest(cluster_num)
-        net.connect_nearest_component()
-        net.segment_edges(150, 150)
+        net.connect_nodes_nearest(cluster_num, 1)
+        # net.connect_nodes_radius(200, 1)
+        net.connect_nearest_component(1)
+        net.segment_edges(200, 200, 1)
 
         start = time.time()
         solver = FlowSolver(net)
@@ -102,7 +102,7 @@ def test_flow_solver(
     ax.plot(cluster_nums, objs[1:])
     ax.set_xlabel('Cluster Number')
     ax.set_ylabel('Objective Value')
-    plt.savefig(f'./result/flow/fig_obj_{vsrc.name}.png')
+    plt.savefig(f'./result/flow/fig_obj_{network.task.vset.vsrc.name}.png')
 
     # plot line figure for time
     fig = plt.figure()
@@ -110,10 +110,67 @@ def test_flow_solver(
     ax.plot(cluster_nums, times[1:])
     ax.set_xlabel('Cluster Number')
     ax.set_ylabel('Time')
-    plt.savefig(f'./result/flow/fig_time_{vsrc.name}.png')
+    plt.savefig(f'./result/flow/fig_time_{network.task.vset.vsrc.name}.png')
 
     return objs, times
 
+
+def test_greedy_solver(
+        network: Topology, 
+        cluster_nums: 'list[int]'=range(1, 11),
+        path_nums: 'list[int]'=range(1, 11),
+        ):
+
+    times = np.zeros((len(cluster_nums) + 1, len(path_nums) + 1))
+    objs = np.zeros((len(cluster_nums) + 1, len(path_nums) + 1))
+
+    for i, cluster_num in enumerate(cluster_nums):
+        for j, path_num in enumerate(path_nums):
+            net = copy.deepcopy(network)
+
+            net.connect_nodes_nearest(cluster_num, 1)
+            # net.connect_nodes_radius(200, 1)
+            net.connect_nearest_component(1)
+            net.segment_edges(200, 200, 1)
+
+            start = time.time()
+            solver = GreedySolver(net, path_num)
+            solver.solve()
+            end = time.time()
+
+            objs[cluster_num, path_num] = solver.obj_val
+            times[cluster_num, path_num] = end - start
+
+        print(f"Cluster Number: {cluster_num} Done.")
+    # objs[5, :] = 1
+    # plot 3d figure for obj
+    # obj as z, cluster as x, path as y
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    X, Y = np.meshgrid(cluster_nums, path_nums)
+    ax.plot_surface(X, Y, objs[1:, 1:].T, cmap='viridis')
+    ax.set_xlabel('Cluster Number')
+    ax.set_ylabel('Shortest Path Number')
+    ax.set_zlabel('Objective Value')
+    # set z max to 5*min
+    ax.set_zlim(0, 5*np.min(objs[1:, 1:]))
+    # rotate the axes and update
+    ax.view_init(30, 70)
+    plt.savefig(f'./result/greedy/fig_obj_{network.task.vset.vsrc.name}.png')
+
+
+    # plot 3d figure for time
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    X, Y = np.meshgrid(cluster_nums, path_nums)
+    ax.plot_surface(X, Y, times[1:, 1:].T, cmap='viridis')
+    ax.set_xlabel('Cluster Number')
+    ax.set_ylabel('Shortest Path Number')
+    ax.set_zlabel('Time')
+    ax.view_init(30, 45)
+    plt.savefig(f'./result/greedy/fig_time_{network.task.vset.vsrc.name}.png')
+
+    return objs, times
 
 
 def comp_solvers():
@@ -132,8 +189,8 @@ def comp_solvers():
     net.segment_edges(150, 150)
 
     net_path = copy.deepcopy(net)
-    # path_solver = PathSolver(net_path, 10, mip_gap=0.01)
-    path_solver = PathSolverNonCost(net_path, 10, mip_gap=0.01)
+    path_solver = PathSolver(net_path, 10, mip_gap=0.01)
+    # path_solver = PathSolverNonCost(net_path, 10, mip_gap=0.01)
     # path_solver = PathSolverMinResource(net_path, 10, mip_gap=0.01)
     path_solver.solve()
     print(path_solver.obj_val)
@@ -178,13 +235,25 @@ if __name__ == "__main__":
         VertexSource.ATT, 
         ]
     
+    vsrc = VertexSource.NOEL
+    vset = VertexSet(vsrc)
+    task = Task(vset, 1.0, (100, 101))
+    net = Topology(task=task)
+    
+    # cluster_nums = range(1, 6)
+    # path_nums = range(1, 6)
+    cluster_nums = range(1, 11)
+    path_nums = range(1, 11)
+    
     # for vsrc in vsrcs:
     #     test_path_solver(vsrc)
 
     # for vsrc in vsrcs:
     #     test_flow_solver(vsrc)
 
-    # test_path_solver(VertexSource.NOEL)
+    test_path_solver(net, cluster_nums, path_nums)
+    # test_flow_solver(net, cluster_nums)
+    # test_greedy_solver(net, cluster_nums, path_nums)
     
-    comp_solvers()
+    # comp_solvers()
     print("Done.")
