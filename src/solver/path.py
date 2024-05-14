@@ -1,11 +1,12 @@
 
 import random
+import time
 
 import numpy as np
 import networkx as nx
 import gurobipy as gp
 
-
+from ..network.quantum import get_edge_length
 from ..network import VertexSet, VertexSource, Task, Topology, complete_swap, sequential_swap
 from ..utils.plot import plot_nx_graph, plot_optimized_network
 
@@ -243,7 +244,8 @@ class PathSolver():
         edges = self.network.graph.edges(data=False)
         self.pe = {}
         for edge in edges:
-            self.pe[edge] = pc * self.c[edge]
+            length = self.network.graph.edges[edge]['length']
+            self.pe[edge] = pc * self.c[edge] * length
             self.pe[edge] += pc_install * self.Ic[edge]
 
         self.budget = gp.quicksum(self.pv.values()) + gp.quicksum(self.pe.values())
@@ -336,29 +338,44 @@ if __name__ == "__main__":
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 1.0, (100, 101))
+    demand = 100
+    task = Task(vset, 1.0, (demand, demand+1))
     net = Topology(task=task)
-    city_num = len(net.graph.nodes)
 
-    net.connect_nodes_nearest(5, 1)
-    net.segment_edges(200, 200, 1)
-    net.connect_nodes_radius(200, 1)
-    net.connect_nearest_component(1)
+    city_num = len(net.graph.nodes)
+    seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
+    print(f"Suggested edge length: {seg_len}")
+
+    # net.connect_nodes_nearest(10, 1) # ~7.8e6
+    # net.connect_nearest_component(1)
+    # k=50    k=100   k=150   k=200   k=500
+    # ~3.5e7  ~3.2e7  ~2.8e7  ~1e7    ~6.4e6
+    net.make_clique(list(net.graph.nodes), 1) 
+    net.segment_edges(seg_len, seg_len, 1)
+    # net.segment_edges(100, 100, 1)
+    # net.connect_nodes_radius(200, 1)
+
     net.plot(None, None, './result/path/fig.png')
 
-    k = 10
+    # print(net.graph.edges(data=True))
+
+    k = 1000
+    start = time.time()
     solver = PathSolver(net, k, output=True)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
     solver.solve()
+    end = time.time()
+    print(f"Time elapsed: {end - start}")
 
     m = { node: int(m.x) for node, m in solver.m.items() }
     c = { edge: int(c.x) for edge, c in solver.c.items() }
     phi = { edge: phi.x for edge, phi in solver.phi.items() }
     print("Objective value: ", solver.obj_val)
     plot_optimized_network(
-        solver.network.graph, 
+        solver.network.graph,
         m, c, phi,
+        False,
         filename='./result/path/fig-solved.png'
         )
 

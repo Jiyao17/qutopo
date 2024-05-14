@@ -13,7 +13,7 @@ class VertexSource(enum.Enum):
     IRIS = 'topology/Iris.graphml'
     NOEL = 'topology/Noel.graphml'
     TRIANGLE = 'topology/Triangle.graphml'
-    PAIR = 'topology/TwoNodes.graphml'
+    PAIR = 'topology/Pair.graphml'
 
 
 class VertexSet():

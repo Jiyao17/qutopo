@@ -253,7 +253,8 @@ class FlowSolver():
         edges = self.network.graph.edges(data=False)
         self.pe = {}
         for edge in edges:
-            self.pe[edge] = pc * self.c[edge]
+            length = self.network.graph.edges[edge]['length']
+            self.pe[edge] = pc * self.c[edge] * length
             self.pe[edge] += pc_install * self.Ic[edge]
 
         self.budget = gp.quicksum(self.pv.values()) + gp.quicksum(self.pe.values())

@@ -5,21 +5,11 @@ import geopy.distance as geo
 
 from .task import Task
 from .vertex import VertexSet, VertexSource
-from .quantum import complete_swap
+from .quantum import complete_swap, HWParam, get_edge_capacity
 from ..utils.plot import plot_nx_graph
 
 
-HWParam = {
-    'swap_prob': 0.5, # swap probability
-    'fiber_loss': 0.2, # fiber loss
-    'photon_rate': 1e4, # photon rate
-    'pm': 1, # memory price per slot
-    # 'pm_install': 1e6, # memory installation price
-    'pm_install': 1e2, # memory installation price
-    'pc': 1, # channel price per km
-    # 'pc_install': 1e4, # channel installation price
-    'pc_install': 1e2, # channel installation price
-}
+
 
 
 class IDGenerator:
@@ -349,7 +339,7 @@ class Topology:
             u_lat, u_lon = self.graph.nodes[u]['pos']
             v_lat, v_lon = self.graph.nodes[v]['pos']
             length = geo.distance((u_lat, u_lon), (v_lat, v_lon)).km
-            num = int(np.ceil(length // 150))
+            num = int(length // 100)
             for i in range(num):
                 frac = np.random.uniform(0, 1)
                 lat = u_lat + frac * (v_lat - u_lat)
@@ -440,9 +430,7 @@ class Topology:
             length = geo.distance(u_pos, v_pos).km
             fiber_loss = self.hw_params['fiber_loss']
             photon_rate = self.hw_params['photon_rate']
-            # prob for half fiber (detectors are in the middle of edges)
-            prob = 10 ** (-0.1 * fiber_loss * (length/2)) 
-            channel_capacity = photon_rate * prob**2
+            channel_capacity = get_edge_capacity(length, photon_rate, fiber_loss)
             # round to 2 decimal places
             self.graph[u][v]['length'] = np.round(length, 2)
             self.graph[u][v]['channel_capacity'] = channel_capacity

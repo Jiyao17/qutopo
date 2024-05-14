@@ -12,62 +12,128 @@ from ..solver import *
 from ..utils.plot import plot_nx_graph, plot_optimized_network
 
 
-def test_path_solver(
+def test_path_solver_clique(
+        network: Topology, 
+        path_nums: 'list[int]'=range(1, 11),
+        seg_len: float=200,
+        ):
+
+    objs = {path_num: np.nan for path_num in path_nums}
+    times = {path_num: np.nan for path_num in path_nums}
+
+    for j, path_num in enumerate(path_nums):
+        net = copy.deepcopy(network)
+
+        # net.connect_nodes_nearest(cluster_num, 1)
+        # net.connect_nodes_radius(200, 1)
+        # net.connect_nearest_component(1)
+        net.make_clique(list(net.graph.nodes), 1)
+        net.segment_edges(seg_len, seg_len, 1)
+
+        start = time.time()
+        try:
+            solver = PathSolver(net, path_num)
+            solver.solve()
+        except AttributeError:
+            print(f"Path Number: {path_num} Failed.")
+        else:
+            end = time.time()
+            times[path_num] = end - start
+            objs[path_num] = solver.obj_val
+
+        # plot 2d figure for obj
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        objs_arr = np.array([objs[path_num] for path_num in path_nums])
+        ax.plot(path_nums, objs_arr)
+        ax.set_xlabel('Shortest Path Number')
+        ax.set_ylabel('Objective Value')
+        plt.savefig(f'./result/path/fig_obj_{network.task.vset.vsrc.name}_clique.png')
+
+        # plot 2d figure for time
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        times_arr = np.array([times[path_num] for path_num in path_nums])
+        ax.plot(path_nums, times_arr)
+        ax.set_xlabel('Shortest Path Number')
+        ax.set_ylabel('Time')
+        plt.savefig(f'./result/path/fig_time_{network.task.vset.vsrc.name}_clique.png')
+        plt.close()
+    return objs, times
+
+
+
+def test_path_solver_nearest(
         network: Topology, 
         cluster_nums: 'list[int]'=range(1, 11),
         path_nums: 'list[int]'=range(1, 11),
+        seg_len: float=200,
         ):
 
-    times = np.zeros((len(cluster_nums) + 1, len(path_nums) + 1))
-    objs = np.zeros((len(cluster_nums) + 1, len(path_nums) + 1))
+    objs = {(cluster_num, path_num): np.nan for cluster_num in cluster_nums for path_num in path_nums}
+    times = {(cluster_num, path_num): np.nan for cluster_num in cluster_nums for path_num in path_nums}
 
     for i, cluster_num in enumerate(cluster_nums):
         for j, path_num in enumerate(path_nums):
+
             net = copy.deepcopy(network)
 
             net.connect_nodes_nearest(cluster_num, 1)
-            # net.connect_nodes_radius(200, 1)
+            # net.connect_nodes_radius(150, 1)
             net.connect_nearest_component(1)
-            net.segment_edges(200, 200, 1)
+            # net.make_clique(list(net.graph.nodes), 1)
+            net.segment_edges(seg_len, seg_len, 1)
 
             start = time.time()
             solver = PathSolver(net, path_num, 'length')
-            solver.solve()
-            end = time.time()
+            try:
+                solver.solve()
+            except AttributeError:
+                print(f"Cluster Number: {cluster_num}, Path Number: {path_num} Failed.")
+                objs[cluster_num, path_num] = np.nan
+                times[cluster_num, path_num] = np.nan
+            else:
+                end = time.time()
 
-            objs[cluster_num, path_num] = solver.obj_val
-            times[cluster_num, path_num] = end - start
+                objs[cluster_num, path_num] = solver.obj_val
+                times[cluster_num, path_num] = end - start
 
         print(f"Cluster Number: {cluster_num} Done.")
-    # objs[5, :] = 1
-    # plot 3d figure for obj
-    # obj as z, cluster as x, path as y
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    X, Y = np.meshgrid(cluster_nums, path_nums)
-    ax.plot_surface(X, Y, objs[1:, 1:].T, cmap='viridis')
-    ax.set_xlabel('Cluster Number')
-    ax.set_ylabel('Shortest Path Number')
-    ax.set_zlabel('Objective Value')
-    # set z max to 5*min
-    # ax.set_zlim(0, 5*np.min(objs[1:, 1:]))
-    # rotate the axes and update
-    ax.view_init(30, 70)
-    plt.savefig(f'./result/path/fig_obj_{network.task.vset.vsrc.name}.png')
+        # objs[5, :] = 1
+        # plot 3d figure for obj
+        # obj as z, cluster as x, path as y
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        X, Y = np.meshgrid(cluster_nums, path_nums)
+        objs_arr = np.array([[objs[cluster_num, path_num] for path_num in path_nums] for cluster_num in cluster_nums])
+        ax.plot_surface(X, Y, objs_arr, cmap='viridis')
+        ax.set_xlabel('Cluster Number')
+        ax.set_ylabel('Path Number')
+        ax.set_zlabel('Price')
+        # set z max to 5*min
+        # ax.set_zlim(0, 5*np.min(objs[1:, 1:]))
+        # set z to log scale
+        ax.set_zscale('log')
+        # rotate the axes and update
+        ax.view_init(30, 70)
+        plt.savefig(f'./result/path/fig_obj_{network.task.vset.vsrc.name}.png')
 
 
-    # plot 3d figure for time
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    X, Y = np.meshgrid(cluster_nums, path_nums)
-    ax.plot_surface(X, Y, times[1:, 1:].T, cmap='viridis')
-    ax.set_xlabel('Cluster Number')
-    ax.set_ylabel('Shortest Path Number')
-    ax.set_zlabel('Time')
-    ax.view_init(30, 45)
-    plt.savefig(f'./result/path/fig_time_{network.task.vset.vsrc.name}.png')
+        # plot 3d figure for time
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        X, Y = np.meshgrid(cluster_nums, path_nums)
+        times_arr = np.array([[times[cluster_num, path_num] for path_num in path_nums] for cluster_num in cluster_nums])
+        ax.plot_surface(X, Y, times_arr, cmap='viridis')
+        ax.set_xlabel('Cluster Number')
+        ax.set_ylabel('Path Number')
+        ax.set_zlabel('Time')
+        ax.view_init(30, 22.5)
+        plt.savefig(f'./result/path/fig_time_{network.task.vset.vsrc.name}.png')
 
     return objs, times
+
+
 
 
 def test_flow_solver(
@@ -129,7 +195,7 @@ def test_greedy_solver(
             net = copy.deepcopy(network)
 
             net.connect_nodes_nearest(cluster_num, 1)
-            # net.connect_nodes_radius(200, 1)
+            net.connect_nodes_radius(200, 1)
             net.connect_nearest_component(1)
             net.segment_edges(200, 200, 1)
 
@@ -237,13 +303,16 @@ if __name__ == "__main__":
     
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 1.0, (100, 101))
+    demand = 100
+    task = Task(vset, 1.0, (demand, demand+1))
     net = Topology(task=task)
+
+    seg_len = get_edge_length(demand, 1e4, 0.2)
     
     # cluster_nums = range(1, 6)
     # path_nums = range(1, 6)
-    cluster_nums = range(1, 11)
-    path_nums = range(1, 11)
+    cluster_nums = range(5, 16)
+    path_nums = range(5, 51)
     
     # for vsrc in vsrcs:
     #     test_path_solver(vsrc)
@@ -251,9 +320,11 @@ if __name__ == "__main__":
     # for vsrc in vsrcs:
     #     test_flow_solver(vsrc)
 
-    test_path_solver(net, cluster_nums, path_nums)
+    # test_path_solver_nearest(net, cluster_nums, path_nums, seg_len)
+    path_nums = range(50, 1050, 50)
+    test_path_solver_clique(net, path_nums)
     # test_flow_solver(net, cluster_nums)
     # test_greedy_solver(net, cluster_nums, path_nums)
-    
+    # 
     # comp_solvers()
     print("Done.")

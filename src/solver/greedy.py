@@ -277,13 +277,13 @@ if __name__ == "__main__":
     net = Topology(task=task)
 
     city_num = len(net.graph.nodes)
-    net.connect_nodes_nearest(5, 1)
+    net.connect_nodes_nearest(10, 1)
     net.connect_nodes_radius(200, 1)
     net.connect_nearest_component(1)
     net.segment_edges(200, 200, 1)
     net.plot(None, None, './result/greedy/fig.png')
 
-    k = 20
+    k = 10
     # solver = GreedySolver(net, k, None, 'resource')
     solver = GreedySolver(net, k, None, 'cost')
     solver.solve()
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     print("Objective value: ", solver.obj_val)
     plot_optimized_network(
         solver.network.graph, 
-        solver.m, solver.c, solver.phi,
+        solver.m, solver.c, solver.phi, 
         filename='./result/greedy/fig-solved.png'
         )
 
