@@ -138,8 +138,12 @@ def test_flow_solver(
         cluster_nums: 'list[int]'=range(1, 11),
         ):
 
-    objs = np.zeros((len(cluster_nums) + 1, ))
-    times = np.zeros((len(cluster_nums) + 1, ))
+    objs = np.ndarray((len(cluster_nums) + 1, ))
+    times = np.ndarray((len(cluster_nums) + 1, ))
+
+    # set all values to nan
+    objs.fill(np.nan)
+    times.fill(np.nan)
 
     for i, cluster_num in enumerate(cluster_nums):
         net = copy.deepcopy(network)
@@ -151,6 +155,7 @@ def test_flow_solver(
 
         start = time.time()
         solver = FlowSolver(net)
+        solver.build()
         solver.solve()
         end = time.time()
 
@@ -159,21 +164,18 @@ def test_flow_solver(
 
         print(f"Cluster Number: {cluster_num} Done.")
         
-    # plot line figure for obj
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(cluster_nums, objs[1:])
-    ax.set_xlabel('Cluster Number')
-    ax.set_ylabel('Objective Value')
-    plt.savefig(f'./result/flow/fig_obj_{network.task.vset.vsrc.name}.png')
+        # plot 2 y axis, obj and time
+        fig, ax1 = plt.subplots()
+        ax2 = ax1.twinx()
+        ax1.plot(cluster_nums, objs[1:], 'g-')
+        ax2.plot(cluster_nums, times[1:], 'b-')
+        ax1.set_xlabel('Cluster Number')
+        ax1.set_ylabel('Cost', color='g')
+        ax2.set_ylabel('Time', color='b')
 
-    # plot line figure for time
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(cluster_nums, times[1:])
-    ax.set_xlabel('Cluster Number')
-    ax.set_ylabel('Time')
-    plt.savefig(f'./result/flow/fig_time_{network.task.vset.vsrc.name}.png')
+        prob = network.hw_params['swap_prob']
+        plt.savefig(f'./result/flow/fig_{network.task.vset.vsrc.name}_{prob}.png')
+
 
     return objs, times
 
@@ -237,46 +239,87 @@ def test_greedy_solver(
 
 
 def comp_solvers():
-
     seed = 0
     random.seed(seed)
     np.random.seed(seed)
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 0.2, (10, 11))
+    demand = 10
+    task = Task(vset, 0.5, (demand, demand+1))
     net = Topology(task=task)
 
-    net.connect_nodes_nearest(5)
-    net.connect_nearest_component()
-    net.segment_edges(150, 150)
+    city_num = len(net.graph.nodes)
+    seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
+    print(f"Suggested edge length: {seg_len}")
 
-    net_path = copy.deepcopy(net)
-    path_solver = PathSolver(net_path, 100, mip_gap=0.01)
-    # path_solver = PathSolverNonCost(net_path, 10, mip_gap=0.01)
-    # path_solver = PathSolverMinResource(net_path, 10, mip_gap=0.01)
-    path_solver.prepare_paths()
-    path_solver.build()
-    path_solver.solve()
-    print(path_solver.obj_val)
-    # plot_optimized_network(
-    #     path_solver.network.graph, 
-    #     path_solver.m, path_solver.c, path_solver.phi,
-    #     filename='./result/test/fig_solved_path.png')
+    net.connect_nodes_nearest(5, 1) # ~7.8e6
+    # net.connect_nearest_component()
+    # k=50    k=100   k=150   k=200   k=500
+    # ~3.5e7  ~3.2e7  ~2.8e7  ~1e7    ~6.4e6
+    # net.make_clique(list(net.graph.nodes), 1) 
+    net.segment_edges(seg_len, seg_len, 1)
+    # net.segment_edges(100, 100, 1)
+    # net.connect_nodes_radius(200, 1)
+
+    net.plot(None, None, './result/path/fig.png')
+
+    # print(net.graph.edges(data=True))
+
+    k = 100
+    start = time.time()
+    solver = PathSolver(net, k, output=True)
+    # solver = PathSolverNonCost(net, k, output=True)
+    # solver = PathSolverMinResource(net, k, output=True)
+    solver.prepare_paths()
+    solver.build()
+    solver.solve()
+    end = time.time()
+    print(f"Time elapsed: {end - start}")
+
+    m = { node: int(m.x) for node, m in solver.m.items() }
+    c = { edge: int(c.x) for edge, c in solver.c.items() }
+    phi = { edge: phi.x for edge, phi in solver.phi.items() }
+    print("Path Solver obj: ", solver.obj_val)
+    plot_optimized_network(
+        solver.network.graph,
+        m, c, phi,
+        False,
+        filename='./result/path/fig-solved.png'
+        )
 
     net_flow = copy.deepcopy(net)
+    start = time.time()
     flow_solver = FlowSolver(net_flow, mip_gap=0.01)
     # flow_solver = FlowSolverNonCost(net_flow, mip_gap=0.01)
     # flow_solver = FlowSolverMinResource(net_flow, mip_gap=0.01)
-    # flow_solver.build()
-    # flow_solver.solve()
-
+    flow_solver.build()
+    flow_solver.solve()
+    end = time.time()
     if flow_solver.obj_val is not None:
-        print(flow_solver.obj_val)
+        print("Flow Solver obj: ", flow_solver.obj_val)
+        print("Time elapsed: ", end - start)
         # plot_optimized_network(
         #     flow_solver.network.graph, 
         #     flow_solver.m, flow_solver.c, flow_solver.phi,
         #     filename='./result/test/fig_solved_flow.png')
+
+    net_greedy = copy.deepcopy(net)
+    start = time.time()
+    # solver = GreedySolver(net, k, None, 'resource')
+    solver = GreedySolver(net_greedy, k, None, 'cost')
+    solver.solve()
+    end = time.time()
+
+    
+    print("Greedy Solver obj: ", solver.obj_val)
+    print("Time elapsed: ", end - start)
+    plot_optimized_network(
+        solver.network.graph, 
+        solver.m, solver.c, solver.phi, 
+        filename='./result/greedy/fig-solved.png'
+        )
+
 
 
 def demo():
@@ -328,6 +371,14 @@ if __name__ == "__main__":
     # 2. solving is fast but building is slow
     #    building time is sensitive to graph density
 
+    seed = 0
+    random.seed(seed)
+    np.random.seed(seed)
 
-    comp_solvers()
-    print("Done.")
+    vsrc = VertexSource.NOEL
+    vset = VertexSet(vsrc)
+    demand = 10
+    task = Task(vset, 0.5, (demand, demand+1))
+    net = Topology(task=task)
+    
+    test_flow_solver(net, range(1, 11))

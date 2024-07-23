@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 import random
+import time
 
 import numpy as np
 import networkx as nx
@@ -273,23 +274,26 @@ if __name__ == "__main__":
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 1.0, (100, 101))
+    task = Task(vset, 0.5, (10, 11))
     net = Topology(task=task)
 
     city_num = len(net.graph.nodes)
-    net.connect_nodes_nearest(10, 1)
-    net.connect_nodes_radius(200, 1)
+    net.connect_nodes_nearest(5, 1)
+    # net.connect_nodes_radius(200, 1)
     net.connect_nearest_component(1)
-    net.segment_edges(200, 200, 1)
+    net.segment_edges(150, 150, 1)
     net.plot(None, None, './result/greedy/fig.png')
 
-    k = 10
+    k = 500
+    start = time.time()
     # solver = GreedySolver(net, k, None, 'resource')
     solver = GreedySolver(net, k, None, 'cost')
     solver.solve()
+    end = time.time()
 
     
     print("Objective value: ", solver.obj_val)
+    print("Time elapsed: ", end - start)
     plot_optimized_network(
         solver.network.graph, 
         solver.m, solver.c, solver.phi, 

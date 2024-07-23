@@ -339,7 +339,7 @@ class PathSolverMinResource(PathSolverNonCost):
 
 
 if __name__ == "__main__":
-    seed = 66
+    seed = 0
     random.seed(seed)
     np.random.seed(seed)
 
@@ -353,11 +353,11 @@ if __name__ == "__main__":
     seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
     print(f"Suggested edge length: {seg_len}")
 
-    # net.connect_nodes_nearest(10, 1) # ~7.8e6
-    # net.connect_nearest_component(1)
+    net.connect_nodes_nearest(5, 1) # ~7.8e6
+    # net.connect_nearest_component()
     # k=50    k=100   k=150   k=200   k=500
     # ~3.5e7  ~3.2e7  ~2.8e7  ~1e7    ~6.4e6
-    net.make_clique(list(net.graph.nodes), 1) 
+    # net.make_clique(list(net.graph.nodes), 1) 
     net.segment_edges(seg_len, seg_len, 1)
     # net.segment_edges(100, 100, 1)
     # net.connect_nodes_radius(200, 1)
@@ -366,11 +366,13 @@ if __name__ == "__main__":
 
     # print(net.graph.edges(data=True))
 
-    k = 1000
+    k = 500
     start = time.time()
     solver = PathSolver(net, k, output=True)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
+    solver.prepare_paths()
+    solver.build()
     solver.solve()
     end = time.time()
     print(f"Time elapsed: {end - start}")

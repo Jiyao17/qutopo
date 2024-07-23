@@ -431,26 +431,27 @@ if __name__ == "__main__":
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 1.0, (100, 101))
+    task = Task(vset, 0.5, (10, 11))
     net = Topology(task=task)
     city_num = len(net.graph.nodes)
 
     net.connect_nodes_nearest(5, 1)
-    net.connect_nodes_radius(200, 1)
+    # net.connect_nodes_radius(200, 1)
     net.connect_nearest_component(1)
-    net.segment_edges(200, 200, 1)
+    net.segment_edges(150, 150, 1)
     net.plot(None, None, './result/flow/fig.png')
 
     print(len(net.graph.nodes), len(net.graph.edges))
-
-    solver = FlowSolver(net, 600, output=True)
+    start = time.time()
+    solver = FlowSolver(net, 60, output=True)
     # solver = FlowSolverNonCost(net, output=True)
     # solver = FlowSolverMinResource(net, output=True)
-    
+    solver.build()
     solver.solve()
-    
+    end = time.time()
     if solver.obj_val is not None:
         print("Objective value: ", solver.obj_val)
+        print(f"Time spent: {end - start:.2f} seconds")
         m = { node: int(m.x) for node, m in solver.m.items() }
         c = { edge: int(c.x) for edge, c in solver.c.items() }
         phi = { edge: phi.x for edge, phi in solver.phi.items() }
