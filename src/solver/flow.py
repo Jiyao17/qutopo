@@ -36,7 +36,7 @@ class FlowSolver():
         if output is False:
             self.model.setParam('OutputFlag', 0)
         self.obj_val = None
-        self.build()
+
 
     def build(self):
         """

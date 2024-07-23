@@ -161,6 +161,8 @@ class Topology:
             distance = geo.distance(p_pos, q_pos).km
             self.graph.add_edge(p, q, length=distance, group=group)    
 
+        
+
     def segment_edge_clique(self, u, v, point_num, group=0):
         """
         segment the edge with length greater than threshold

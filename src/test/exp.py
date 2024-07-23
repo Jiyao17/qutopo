@@ -62,7 +62,6 @@ def test_path_solver_clique(
     return objs, times
 
 
-
 def test_path_solver_nearest(
         network: Topology, 
         cluster_nums: 'list[int]'=range(1, 11),
@@ -132,8 +131,6 @@ def test_path_solver_nearest(
         plt.savefig(f'./result/path/fig_time_{network.task.vset.vsrc.name}.png')
 
     return objs, times
-
-
 
 
 def test_flow_solver(
@@ -247,7 +244,7 @@ def comp_solvers():
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 0.2, (100, 101))
+    task = Task(vset, 0.2, (10, 11))
     net = Topology(task=task)
 
     net.connect_nodes_nearest(5)
@@ -255,55 +252,44 @@ def comp_solvers():
     net.segment_edges(150, 150)
 
     net_path = copy.deepcopy(net)
-    path_solver = PathSolver(net_path, 10, mip_gap=0.01)
+    path_solver = PathSolver(net_path, 100, mip_gap=0.01)
     # path_solver = PathSolverNonCost(net_path, 10, mip_gap=0.01)
     # path_solver = PathSolverMinResource(net_path, 10, mip_gap=0.01)
+    path_solver.prepare_paths()
+    path_solver.build()
     path_solver.solve()
     print(path_solver.obj_val)
-    plot_optimized_network(
-        path_solver.network.G, 
-        path_solver.m, path_solver.c, path_solver.phi,
-        filename='./result/test/fig_solved_path.png')
+    # plot_optimized_network(
+    #     path_solver.network.graph, 
+    #     path_solver.m, path_solver.c, path_solver.phi,
+    #     filename='./result/test/fig_solved_path.png')
 
     net_flow = copy.deepcopy(net)
-    # flow_solver = FlowSolver(net_flow, mip_gap=0.01)
-    flow_solver = FlowSolverNonCost(net_flow, mip_gap=0.01)
+    flow_solver = FlowSolver(net_flow, mip_gap=0.01)
+    # flow_solver = FlowSolverNonCost(net_flow, mip_gap=0.01)
     # flow_solver = FlowSolverMinResource(net_flow, mip_gap=0.01)
-
-    flow_solver.solve()
+    # flow_solver.build()
+    # flow_solver.solve()
 
     if flow_solver.obj_val is not None:
         print(flow_solver.obj_val)
-        plot_optimized_network(
-            flow_solver.network.G, 
-            flow_solver.m, flow_solver.c, flow_solver.phi,
-            filename='./result/test/fig_solved_flow.png')
+        # plot_optimized_network(
+        #     flow_solver.network.graph, 
+        #     flow_solver.m, flow_solver.c, flow_solver.phi,
+        #     filename='./result/test/fig_solved_flow.png')
 
 
-if __name__ == "__main__":
-    # weekly conclusion
-
-    # for path solver
-    # 1. increasing path number does not reduce the objective value much
-    # 2. but increasing cluster number does
-    # 3. denser graph is better
-
-    # for flow solver
-    # 1. if optimally solved, obj is theoretically better than the one given by path solver
-    # 2. solving is fast but building is slow
-    #    building time is sensitive to graph density
-
-
+def demo():
     vsrcs = [
-        VertexSource.GETNET,
-        VertexSource.NOEL, 
-        VertexSource.IRIS, 
-        VertexSource.ATT, 
-        ]
-    
+    VertexSource.GETNET,
+    VertexSource.NOEL, 
+    VertexSource.IRIS, 
+    VertexSource.ATT, 
+    ]
+
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    demand = 100
+    demand = 10
     task = Task(vset, 1.0, (demand, demand+1))
     net = Topology(task=task)
 
@@ -321,10 +307,27 @@ if __name__ == "__main__":
     #     test_flow_solver(vsrc)
 
     # test_path_solver_nearest(net, cluster_nums, path_nums, seg_len)
-    path_nums = range(50, 1050, 50)
-    test_path_solver_clique(net, path_nums)
+    # path_nums = range(50, 50, 50)
+    # test_path_solver_clique(net, path_nums)
     # test_flow_solver(net, cluster_nums)
     # test_greedy_solver(net, cluster_nums, path_nums)
     # 
-    # comp_solvers()
+
+
+
+if __name__ == "__main__":
+    # weekly conclusion
+
+    # for path solver
+    # 1. increasing path number does not reduce the objective value much
+    # 2. but increasing cluster number does
+    # 3. denser graph is better
+
+    # for flow solver
+    # 1. if optimally solved, obj is theoretically better than the one given by path solver
+    # 2. solving is fast but building is slow
+    #    building time is sensitive to graph density
+
+
+    comp_solvers()
     print("Done.")

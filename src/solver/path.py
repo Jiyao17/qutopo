@@ -25,7 +25,7 @@ class PathSolver():
         ) -> None:
 
         self.network = network
-        self.k = k
+        self.k = k # candidate path number between each SD pair
         self.edge_weight = edge_weight
         self.time_limit = time_limit
         self.mip_gap = mip_gap
@@ -41,9 +41,17 @@ class PathSolver():
         if output is False:
             self.model.setParam('OutputFlag', 0)
 
-        self.build(edge_weight=edge_weight)
+    def prepare_paths(self, existing_paths: dict=None):
+        if self.output:
+            print("searching paths...")
+        self.paths = self.all_pairs_YenKSP(weight=self.edge_weight, existing_paths=existing_paths)
 
-    def build(self, edge_weight=None):
+        if self.output:
+            print("solving paths...")
+        self.alpha, self.beta = self.solve_paths(self.paths)
+
+
+    def build(self,):
         """
         build the model
         """
@@ -52,36 +60,36 @@ class PathSolver():
         # find k shortest paths between all pairs in D
         # and pre-solve the paths
         if self.output:
-            print("searching paths...")
-        self.paths = self.all_pairs_YenKSP(weight=edge_weight)
-
-        if self.output:
-            print("solving paths...")
-        self.alpha, self.beta = self.solve_paths(self.paths)
-
-        if self.output:
             print("building linear model...")
 
         self.add_variables()
         self.add_resource_constr()
-        self.add_budget_def()
+        self.add_budget_def()     
         self.add_demand_constr()
         
         if self.output:
             print("Model building done.")
 
-    def all_pairs_YenKSP(self, weight=None):
+    def all_pairs_YenKSP(self, weight=None, existing_paths: dict=None):
         """
         find k shortest paths between all pairs in D
         weight: str, optional (default=None)
             -None: least hops
             -'length': Shortest path length
+        existing_paths: dict, optional (default=None)
         """
         paths: 'dict[tuple[int], list[tuple[str]]]' = { pair: [] for pair in self.D.keys() }
+        
+        if existing_paths is not None:
+            for pair in existing_paths.keys():
+                for i, path in enumerate(existing_paths[pair]):
+                    if i <= self.k:
+                        paths[pair].append(path)
+        
         for pair in self.D.keys():
             src, dst = pair
             path_iter = nx.shortest_simple_paths(self.network.graph, src, dst, weight=weight)
-            for _ in range(self.k):
+            while len(paths[pair]) < self.k:
                 try:
                     path = tuple(next(path_iter))
                     paths[pair].append(path)
@@ -264,7 +272,6 @@ class PathSolver():
             raise AttributeError
 
 
-
 class PathSolverNonCost(PathSolver):
     def add_resource_constr(self):
         """
@@ -338,8 +345,8 @@ if __name__ == "__main__":
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    demand = 100
-    task = Task(vset, 1.0, (demand, demand+1))
+    demand = 10
+    task = Task(vset, 0.5, (demand, demand+1))
     net = Topology(task=task)
 
     city_num = len(net.graph.nodes)
