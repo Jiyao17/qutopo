@@ -8,10 +8,10 @@ HWParam = {
     'photon_rate': 1e4, # photon rate
     'pm': 1, # memory price per slot
     # 'pm_install': 1e6, # memory installation price
-    'pm_install': 1e2, # memory installation price
+    'pm_install': 1e1, # memory installation price
     'pc': 1, # channel price per km
     # 'pc_install': 1e4, # channel installation price
-    'pc_install': 1e2, # channel installation price
+    'pc_install': 1e1, # channel installation price
 }
 
 def complete_swap(costs: 'list[float]', swap_prob: float):

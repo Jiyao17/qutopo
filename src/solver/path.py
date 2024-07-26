@@ -354,7 +354,7 @@ if __name__ == "__main__":
     print(f"Suggested edge length: {seg_len}")
 
     net.connect_nodes_nearest(5, 1) # ~7.8e6
-    # net.connect_nearest_component()
+    net.connect_nearest_component(1)
     # k=50    k=100   k=150   k=200   k=500
     # ~3.5e7  ~3.2e7  ~2.8e7  ~1e7    ~6.4e6
     # net.make_clique(list(net.graph.nodes), 1) 
@@ -366,9 +366,9 @@ if __name__ == "__main__":
 
     # print(net.graph.edges(data=True))
 
-    k = 500
+    k = 100
     start = time.time()
-    solver = PathSolver(net, k, output=True)
+    solver = PathSolver(net, k, mip_gap=0.05, output=True)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
     solver.prepare_paths()

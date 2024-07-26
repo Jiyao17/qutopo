@@ -154,7 +154,7 @@ def test_flow_solver(
         net.segment_edges(200, 200, 1)
 
         start = time.time()
-        solver = FlowSolver(net)
+        solver = FlowSolver(net, 600)
         solver.build()
         solver.solve()
         end = time.time()
@@ -253,8 +253,8 @@ def comp_solvers():
     seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
     print(f"Suggested edge length: {seg_len}")
 
-    net.connect_nodes_nearest(5, 1) # ~7.8e6
-    # net.connect_nearest_component()
+    net.connect_nodes_nearest(5) # ~7.8e6
+    net.connect_nearest_component()
     # k=50    k=100   k=150   k=200   k=500
     # ~3.5e7  ~3.2e7  ~2.8e7  ~1e7    ~6.4e6
     # net.make_clique(list(net.graph.nodes), 1) 
@@ -267,14 +267,16 @@ def comp_solvers():
     # print(net.graph.edges(data=True))
 
     k = 100
+    net_path = copy.deepcopy(net)
     start = time.time()
-    solver = PathSolver(net, k, output=True)
+    solver = PathSolver(net_path, k, mip_gap=0.05, output=True)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
     solver.prepare_paths()
     solver.build()
     solver.solve()
     end = time.time()
+    path_time = end - start
     print(f"Time elapsed: {end - start}")
 
     m = { node: int(m.x) for node, m in solver.m.items() }
@@ -290,7 +292,7 @@ def comp_solvers():
 
     net_flow = copy.deepcopy(net)
     start = time.time()
-    flow_solver = FlowSolver(net_flow, mip_gap=0.01)
+    flow_solver = FlowSolver(net_flow, time_limit=path_time, mip_gap=0.05)
     # flow_solver = FlowSolverNonCost(net_flow, mip_gap=0.01)
     # flow_solver = FlowSolverMinResource(net_flow, mip_gap=0.01)
     flow_solver.build()
@@ -371,14 +373,16 @@ if __name__ == "__main__":
     # 2. solving is fast but building is slow
     #    building time is sensitive to graph density
 
-    seed = 0
-    random.seed(seed)
-    np.random.seed(seed)
+    comp_solvers()
 
-    vsrc = VertexSource.NOEL
-    vset = VertexSet(vsrc)
-    demand = 10
-    task = Task(vset, 0.5, (demand, demand+1))
-    net = Topology(task=task)
+    # seed = 0
+    # random.seed(seed)
+    # np.random.seed(seed)
+
+    # vsrc = VertexSource.NOEL
+    # vset = VertexSet(vsrc)
+    # demand = 10
+    # task = Task(vset, 0.5, (demand, demand+1))
+    # net = Topology(task=task)
     
-    test_flow_solver(net, range(1, 11))
+    # test_flow_solver(net, range(1, 11))

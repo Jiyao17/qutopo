@@ -8,6 +8,7 @@ import gurobipy as gp
 
 from ..network import VertexSet, VertexSource, Task, Topology
 from ..utils.plot import plot_nx_graph, plot_optimized_network
+from ..network.quantum import get_edge_length
 
 
 class FlowSolver():
@@ -433,7 +434,10 @@ if __name__ == "__main__":
     vset = VertexSet(vsrc)
     task = Task(vset, 0.5, (10, 11))
     net = Topology(task=task)
-    city_num = len(net.graph.nodes)
+    city_num = len(net.graph.nodes)   
+    seg_len = get_edge_length(10, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
+    print(f"Suggested edge length: {seg_len}")
+
 
     net.connect_nodes_nearest(5, 1)
     # net.connect_nodes_radius(200, 1)
@@ -443,7 +447,7 @@ if __name__ == "__main__":
 
     print(len(net.graph.nodes), len(net.graph.edges))
     start = time.time()
-    solver = FlowSolver(net, 60, output=True)
+    solver = FlowSolver(net, 600, 0.05, output=True)
     # solver = FlowSolverNonCost(net, output=True)
     # solver = FlowSolverMinResource(net, output=True)
     solver.build()

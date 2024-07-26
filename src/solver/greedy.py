@@ -9,7 +9,7 @@ import networkx as nx
 
 from ..network import VertexSet, VertexSource, Task, Topology, complete_swap, sequential_swap
 from ..utils.plot import plot_nx_graph, plot_optimized_network
-
+from ..network.quantum import get_edge_length
 
 class GreedySolver():
     """
@@ -126,7 +126,8 @@ class GreedySolver():
             channel_num = self.c[edge] if edge in self.c else self.c[(edge[1], edge[0])]
             channel_cap = self.network.graph.edges[edge]['channel_capacity']
             edge_length = self.network.graph.edges[edge]['length']
-            rem = channel_cap * channel_num - self.alpha[(pair, path, edge)] * demand
+            used_phi = self.phi[edge] if edge in self.phi else self.phi[(edge[1], edge[0])]
+            rem = channel_cap * channel_num - used_phi
             if rem < 0:
                 dchannels[edge] = int(np.ceil(abs(rem) / channel_cap))
                 edge_cost[edge] = dchannels[edge] * self.network.hw_params['pc'] * edge_length
@@ -216,11 +217,17 @@ class GreedySolver():
         demands = list(self.D.values())
 
         i = -1
+        # loop for remaining demands
         while max(demands) > 0:
+            # select the next pair
             i = (i + 1) % len(pairs)
             dpair = pairs[i]
-            demands[i] -= ddemand
-            demand = ddemand
+            if demands[i] > ddemand:
+                demands[i] -= ddemand
+                demand = ddemand
+            else:
+                demand = demands[i]
+                demands[i] = 0
 
             best_path = None
             best_resource = np.inf
@@ -234,6 +241,7 @@ class GreedySolver():
                         best_resource = resource
             elif criterion == 'cost':
                 for path in self.paths[dpair]:
+                    # find best path for current pair
                     dchannels, dmems, edge_cost, node_cost = self.try_path(path, demand)
                     cost = sum(edge_cost.values()) + sum(node_cost.values())
                     if cost < best_cost:
@@ -250,10 +258,10 @@ class GreedySolver():
             for edge in edges:
                 if edge in self.c:
                     self.c[edge] += dchannels[edge] if edge in dchannels else dchannels[(edge[1], edge[0])]
-                    self.phi[edge] += self.alpha[(dpair, best_path, edge)]
+                    self.phi[edge] += self.alpha[(dpair, best_path, edge)] * demand
                 else:
                     self.c[(edge[1], edge[0])] += dchannels[edge] if edge in dchannels else dchannels[(edge[1], edge[0])]
-                    self.phi[(edge[1], edge[0])] += self.alpha[(dpair, best_path, edge)]
+                    self.phi[(edge[1], edge[0])] += self.alpha[(dpair, best_path, edge)] * demand
             for node in best_path:
                 self.m[node] += dmems[node]
         
@@ -274,17 +282,28 @@ if __name__ == "__main__":
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    task = Task(vset, 0.5, (10, 11))
+    demand = 10
+    task = Task(vset, 0.5, (demand, demand+1))
     net = Topology(task=task)
 
     city_num = len(net.graph.nodes)
-    net.connect_nodes_nearest(5, 1)
-    # net.connect_nodes_radius(200, 1)
-    net.connect_nearest_component(1)
-    net.segment_edges(150, 150, 1)
-    net.plot(None, None, './result/greedy/fig.png')
+    seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
+    print(f"Suggested edge length: {seg_len}")
 
-    k = 500
+    net.connect_nodes_nearest(5, 1) # ~7.8e6
+    net.connect_nearest_component(1)
+    # k=50    k=100   k=150   k=200   k=500
+    # ~3.5e7  ~3.2e7  ~2.8e7  ~1e7    ~6.4e6
+    # net.make_clique(list(net.graph.nodes), 1) 
+    net.segment_edges(seg_len, seg_len, 1)
+    # net.segment_edges(100, 100, 1)
+    # net.connect_nodes_radius(200, 1)
+
+    net.plot(None, None, './result/path/fig.png')
+
+    # print(net.graph.edges(data=True))
+
+    k = 100
     start = time.time()
     # solver = GreedySolver(net, k, None, 'resource')
     solver = GreedySolver(net, k, None, 'cost')
