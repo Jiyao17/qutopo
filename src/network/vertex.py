@@ -36,25 +36,23 @@ class VertexSet():
         # dict[str, Tuple[float, float]], {id: (latitude, longitude)}
         self.vertices = {}
         # self.edges = {}
-        if isinstance(vsrc, VertexSet):
-            # read the ground network from the graphml file
-            filename = vsrc.value
-            path = os.path.join(os.path.dirname(__file__), filename)
-            self.graph: nx.MultiGraph = nx.read_graphml(path, force_multigraph=True)
-            # extract
-            node_id = 0
-            deleted = []
-            for node, data in self.graph.nodes(data=True):
-                if 'Latitude' not in data or 'Longitude' not in data:
-                    deleted.append(node)
-                    continue
-                lat, lon= data['Latitude'], data['Longitude']
-                self.vertices[node_id] = (lat, lon)
-
-                node_id += 1
         
-        elif isinstance(vsrc, VertexSetRandom):
-            self.vertices = vsrc.vertices
+        # read the ground network from the graphml file
+        filename = vsrc.value
+        path = os.path.join(os.path.dirname(__file__), filename)
+        self.graph: nx.MultiGraph = nx.read_graphml(path, force_multigraph=True)
+        # extract
+        node_id = 0
+        deleted = []
+        for node, data in self.graph.nodes(data=True):
+            if 'Latitude' not in data or 'Longitude' not in data:
+                deleted.append(node)
+                continue
+            lat, lon= data['Latitude'], data['Longitude']
+            self.vertices[node_id] = (lat, lon)
+
+            node_id += 1
+        
 
         # for node in deleted:
         #     self.graph.remove_node(node)
@@ -109,6 +107,6 @@ if __name__ == '__main__':
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
 
-    vset = VertexSetRandom(10)
-    vset.scale()
+    # vset = VertexSetRandom(10)
+    # vset.scale()
     print(len(vset.vertices))

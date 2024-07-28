@@ -22,8 +22,8 @@ def run_path_solver(
     network: Topology,
     k = 100, 
     edge_weight='length', 
-    time_limit=600,
-    mip_gap=0.05,
+    time_limit=1000,
+    mip_gap=0.01,
     swap_func=complete_swap,
     ):
 
@@ -56,9 +56,10 @@ def compare_price_ratio(params, repeat=1):
     # np.random.seed(seed)
 
     
-    density = 2
+    density = 5
     k = 100
-    ratios = [1/10, 1, 10]
+    xs = ['1:10', '1:5', '1:1', '5:1', '10:1']
+    ratios = [0.1, 0.2, 1, 5, 10]
 
     node_budgets = np.zeros((len(ratios), repeat)) * np.nan
     edge_budgets = np.zeros((len(ratios), repeat)) * np.nan
@@ -107,7 +108,7 @@ def compare_price_ratio(params, repeat=1):
         avg_edge_budgets = np.nanmean(edge_budgets, axis=1)
 
         # prepare for plotting
-        xs = ('1:10', '1:1', '10:1')
+        xs = ['1:10', '1:5', '1:1', '5:1', '10:1']
         ys = {'Node Budget': avg_node_budgets, 'Edge Budget': avg_edge_budgets}
 
         # plot
