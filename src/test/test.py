@@ -33,7 +33,7 @@ def test_solver():
     print(solver.model.objVal)
     plot_opt_result(topo, solver, filename='./result/fig.png')
 
-if __name__ == "__main__":
+def backup():
     # test_topo()
     # test_solver()
     import numpy as np
@@ -45,3 +45,22 @@ if __name__ == "__main__":
     rate = base * prob**2
     print(prob, base, rate)
     # print(rate)
+
+import multiprocessing as mp
+def func(pid):
+    return pid**2
+
+if __name__ == "__main__":
+    # sample code for multiprocessing
+    
+
+    pool = mp.Pool(3)
+    results = []
+    for i in range(3):
+        results.append(pool.apply_async(func, args=(i,)))
+    pool.close()
+
+    for res in results:
+        print(res.get())
+        
+    pool.join()

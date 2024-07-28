@@ -7,8 +7,9 @@ import networkx as nx
 import gurobipy as gp
 
 from ..network.quantum import get_edge_length
-from ..network import VertexSet, VertexSource, Task, Topology, complete_swap, sequential_swap
+from ..network import VertexSet, VertexSource, Task, Topology, VertexSetRandom, complete_swap, sequential_swap
 from ..utils.plot import plot_nx_graph, plot_optimized_network
+from ..utils.callback import callback
 
 
 class PathSolver():
@@ -17,7 +18,7 @@ class PathSolver():
     """
     def __init__(self, 
         network: Topology, 
-        k: int=5, 
+        k: int=100, 
         edge_weight: str=None,
         time_limit: int=60,
         mip_gap: float=0.01,
@@ -36,20 +37,32 @@ class PathSolver():
 
         self.model = gp.Model()
         self.obj_val = None
+        self.obj_vals = []
+        self.node_budget_val = None
+        self.edge_budget_val = None
+        
         self.model.setParam('TimeLimit', time_limit)
         self.model.setParam('MIPGap', mip_gap)
         if output is False:
             self.model.setParam('OutputFlag', 0)
 
-    def prepare_paths(self, existing_paths: dict=None):
+        self.model._obj_vals = []
+
+    def prepare_paths(self, swap_func:callable=complete_swap, existing_paths: dict=None):
         if self.output:
             print("searching paths...")
-        self.paths = self.all_pairs_YenKSP(weight=self.edge_weight, existing_paths=existing_paths)
-
+        # shortest paths
+        # half by length, half by hops
+        # half_k = self.k // 2
+        self.paths = self.all_pairs_YenKSP(weight='length', k=self.k, existing_paths=existing_paths)
+        # shortest_hops_paths = self.all_pairs_YenKSP(weight=None, k=half_k, existing_paths=existing_paths)
+        # self.paths = {}
+        # for pair in self.D.keys():
+        #     self.paths[pair] = shortest_length_paths[pair] + shortest_hops_paths[pair]
+        
         if self.output:
             print("solving paths...")
-        self.alpha, self.beta = self.solve_paths(self.paths)
-
+        self.alpha, self.beta = self.solve_paths(self.paths, swap_func=swap_func)
 
     def build(self,):
         """
@@ -62,15 +75,34 @@ class PathSolver():
         if self.output:
             print("building linear model...")
 
+        start = time.time()
         self.add_variables()
+        end = time.time()
+        if self.output:
+            print(f"Variables added. Time elapsed: {end - start}")
+
+        start = time.time()
         self.add_resource_constr()
-        self.add_budget_def()     
+        end = time.time()
+        if self.output:
+            print(f"Resource constraints added. Time elapsed: {end - start}")
+
+        start = time.time()
+        self.add_budget_def()
+        end = time.time()
+        if self.output:
+            print(f"Budget definition added. Time elapsed: {end - start}")
+
+        start = time.time()     
         self.add_demand_constr()
-        
+        end = time.time()
+        if self.output:
+            print(f"Demand constraints added. Time elapsed: {end - start}")
+
         if self.output:
             print("Model building done.")
 
-    def all_pairs_YenKSP(self, weight=None, existing_paths: dict=None):
+    def all_pairs_YenKSP(self, weight=None, k=1, existing_paths: dict=None):
         """
         find k shortest paths between all pairs in D
         weight: str, optional (default=None)
@@ -83,13 +115,13 @@ class PathSolver():
         if existing_paths is not None:
             for pair in existing_paths.keys():
                 for i, path in enumerate(existing_paths[pair]):
-                    if i <= self.k:
+                    if i <= k:
                         paths[pair].append(path)
         
         for pair in self.D.keys():
             src, dst = pair
             path_iter = nx.shortest_simple_paths(self.network.graph, src, dst, weight=weight)
-            while len(paths[pair]) < self.k:
+            while len(paths[pair]) < k:
                 try:
                     path = tuple(next(path_iter))
                     paths[pair].append(path)
@@ -256,20 +288,29 @@ class PathSolver():
             self.pe[edge] = pc * self.c[edge] * length
             self.pe[edge] += pc_install * self.Ic[edge]
 
-        self.budget = gp.quicksum(self.pv.values()) + gp.quicksum(self.pe.values())
+        self.node_budget = gp.quicksum(self.pv.values())
+        self.edge_budget = gp.quicksum(self.pe.values())
+        self.budget = self.node_budget + self.edge_budget
 
-    def solve(self):
+    def solve(self, callback=callback):
         
         self.model.setObjective(self.budget, gp.GRB.MINIMIZE)
 
-        self.model.optimize()
+        self.model.optimize(callback)
 
         try:
             self.obj_val = self.model.objVal
+            self.obj_vals = self.model._obj_vals
+
+            self.node_budget_val = self.node_budget.getValue()
+            self.edge_budget_val = self.edge_budget.getValue()
         except AttributeError:
-            print("Model is not solved.")
-            print("Probably infeasible or unbounded.")
-            raise AttributeError
+            self.obj_val = None
+            self.obj_vals = []
+
+            self.node_budget_val = None
+            self.edge_budget_val = None
+            print("Path model is not solved.")
 
 
 class PathSolverNonCost(PathSolver):
@@ -339,28 +380,22 @@ class PathSolverMinResource(PathSolverNonCost):
 
 
 if __name__ == "__main__":
-    seed = 0
-    random.seed(seed)
-    np.random.seed(seed)
-
-    vsrc = VertexSource.NOEL
+    vsrc = VertexSource.MISSOURI
     vset = VertexSet(vsrc)
+
+    vset = VertexSetRandom(10)
+    vset.scale()
+
     demand = 10
     task = Task(vset, 0.5, (demand, demand+1))
     net = Topology(task=task)
-
-    city_num = len(net.graph.nodes)
     seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
-    print(f"Suggested edge length: {seg_len}")
 
-    net.connect_nodes_nearest(5, 1) # ~7.8e6
-    net.connect_nearest_component(1)
-    # k=50    k=100   k=150   k=200   k=500
-    # ~3.5e7  ~3.2e7  ~2.8e7  ~1e7    ~6.4e6
-    # net.make_clique(list(net.graph.nodes), 1) 
-    net.segment_edges(seg_len, seg_len, 1)
-    # net.segment_edges(100, 100, 1)
-    # net.connect_nodes_radius(200, 1)
+    net.connect_nodes_nearest(6)
+    # make sure the network is connected
+    net.connect_nearest_component()
+    net.segment_edges(seg_len, seg_len)
+
 
     net.plot(None, None, './result/path/fig.png')
 
@@ -371,22 +406,12 @@ if __name__ == "__main__":
     solver = PathSolver(net, k, mip_gap=0.05, output=True)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
-    solver.prepare_paths()
+    solver.prepare_paths(swap_func=sequential_swap)
     solver.build()
     solver.solve()
     end = time.time()
     print(f"Time elapsed: {end - start}")
-
-    m = { node: int(m.x) for node, m in solver.m.items() }
-    c = { edge: int(c.x) for edge, c in solver.c.items() }
-    phi = { edge: phi.x for edge, phi in solver.phi.items() }
-    print("Objective value: ", solver.obj_val)
-    plot_optimized_network(
-        solver.network.graph,
-        m, c, phi,
-        False,
-        filename='./result/path/fig-solved.png'
-        )
+    print("Objective value: ", solver.obj_vals)
 
 
 

@@ -245,7 +245,7 @@ def comp_solvers():
 
     vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
-    demand = 10
+    demand = 100
     task = Task(vset, 0.5, (demand, demand+1))
     net = Topology(task=task)
 
@@ -253,46 +253,52 @@ def comp_solvers():
     seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
     print(f"Suggested edge length: {seg_len}")
 
-    net.connect_nodes_nearest(5) # ~7.8e6
-    net.connect_nearest_component()
+    density = 10
+    net.connect_nodes_nearest(density) # ~7.8e6
+    # net.connect_nearest_component()
     # k=50    k=100   k=150   k=200   k=500
     # ~3.5e7  ~3.2e7  ~2.8e7  ~1e7    ~6.4e6
-    # net.make_clique(list(net.graph.nodes), 1) 
-    net.segment_edges(seg_len, seg_len, 1)
-    # net.segment_edges(100, 100, 1)
+    # net.make_clique(list(net.graph.nodes(data=False)), 1)
+    net.segment_edges(seg_len, seg_len)
+    # net.segment_edges(10, 10)
     # net.connect_nodes_radius(200, 1)
+    print("node num: ", len(net.graph.nodes))
+    print("edge num: ", len(net.graph.edges))
 
     net.plot(None, None, './result/path/fig.png')
 
     # print(net.graph.edges(data=True))
 
-    k = 100
+    k = 500
     net_path = copy.deepcopy(net)
     start = time.time()
-    solver = PathSolver(net_path, k, mip_gap=0.05, output=True)
+    path_solver = PathSolver(net_path, k, edge_weight='length', mip_gap=0.05, output=True)
+    # path_solver = PathSolver(net_path, k, mip_gap=0.01, output=False)
     # solver = PathSolverNonCost(net, k, output=True)
     # solver = PathSolverMinResource(net, k, output=True)
-    solver.prepare_paths()
-    solver.build()
-    solver.solve()
+    # path_solver.prepare_paths(swap_func=sequential_swap)
+
+    path_solver.prepare_paths(swap_func=complete_swap)
+    path_solver.build()
+    path_solver.solve()
     end = time.time()
     path_time = end - start
     print(f"Time elapsed: {end - start}")
 
-    m = { node: int(m.x) for node, m in solver.m.items() }
-    c = { edge: int(c.x) for edge, c in solver.c.items() }
-    phi = { edge: phi.x for edge, phi in solver.phi.items() }
-    print("Path Solver obj: ", solver.obj_val)
-    plot_optimized_network(
-        solver.network.graph,
-        m, c, phi,
-        False,
-        filename='./result/path/fig-solved.png'
-        )
+    # m = { node: int(m.x) for node, m in path_solver.m.items() }
+    # c = { edge: int(c.x) for edge, c in path_solver.c.items() }
+    # phi = { edge: phi.x for edge, phi in path_solver.phi.items() }
+    # print("Path Solver obj: ", path_solver.obj_val)
+    # plot_optimized_network(
+    #     path_solver.network.graph,
+    #     m, c, phi,
+    #     False,
+    #     filename='./result/path/fig-solved.png'
+    #     )
 
     net_flow = copy.deepcopy(net)
     start = time.time()
-    flow_solver = FlowSolver(net_flow, time_limit=path_time, mip_gap=0.05)
+    flow_solver = FlowSolver(net_flow, time_limit=600, mip_gap=0.05, output=True)
     # flow_solver = FlowSolverNonCost(net_flow, mip_gap=0.01)
     # flow_solver = FlowSolverMinResource(net_flow, mip_gap=0.01)
     flow_solver.build()
@@ -306,21 +312,45 @@ def comp_solvers():
         #     flow_solver.m, flow_solver.c, flow_solver.phi,
         #     filename='./result/test/fig_solved_flow.png')
 
-    net_greedy = copy.deepcopy(net)
-    start = time.time()
-    # solver = GreedySolver(net, k, None, 'resource')
-    solver = GreedySolver(net_greedy, k, None, 'cost')
-    solver.solve()
-    end = time.time()
+    # net_greedy = copy.deepcopy(net)
+    # start = time.time()
+    # # solver = GreedySolver(net, k, None, 'resource')
+    # greedy_solver = GreedySolver(net_greedy, k, None, 'cost')
+    # greedy_solver.solve()
+    # end = time.time()
 
     
-    print("Greedy Solver obj: ", solver.obj_val)
-    print("Time elapsed: ", end - start)
-    plot_optimized_network(
-        solver.network.graph, 
-        solver.m, solver.c, solver.phi, 
-        filename='./result/greedy/fig-solved.png'
-        )
+    # print("Greedy Solver obj: ", greedy_solver.obj_val)
+    # print("Time elapsed: ", end - start)
+    # plot_optimized_network(
+    #     greedy_solver.network.graph, 
+    #     greedy_solver.m, greedy_solver.c, greedy_solver.phi, 
+    #     filename='./result/greedy/fig-solved.png'
+    #     )
+
+    # plot objs vs time, obj as y, time as x
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    path_times = [path_solver.model._obj_vals[i][0] for i in range(len(path_solver.model._obj_vals))]
+    path_objs = [path_solver.model._obj_vals[i][1] for i in range(len(path_solver.model._obj_vals))]
+    ax.plot(path_times, path_objs, label='Path Solver')
+    # print(path_times)
+    # print(path_objs)
+
+    flow_times = [flow_solver.model._obj_vals[i][0] for i in range(len(flow_solver.model._obj_vals))]
+    flow_objs =  [flow_solver.model._obj_vals[i][1] for i in range(len(flow_solver.model._obj_vals))]
+    ax.plot(flow_times, flow_objs, label='Flow Solver')
+
+    # plot single dot for greedy solver
+    # ax.scatter(end - start, greedy_solver.obj_val, label='Greedy Solver')
+    
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Objective Value')
+    # y scale to log
+    ax.set_yscale('log')
+    ax.legend()
+    plt.savefig('./result/fig_obj_time.png')
+    plt.close()
 
 
 

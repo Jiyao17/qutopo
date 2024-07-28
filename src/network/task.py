@@ -3,7 +3,7 @@ import networkx as nx
 import gurobipy as gp
 import numpy as np
 
-from .vertex import VertexSet
+from .vertex import VertexSet, VertexSetRandom
 
 
 class Task():
@@ -14,7 +14,6 @@ class Task():
             demand_range: tuple = (10, 11),
         ) -> None:
 
-        self.vset = vset
         self.demand_frac = demand_frac
         self.demand_range = demand_range
 
@@ -48,6 +47,9 @@ class Task():
 
 if __name__ == '__main__':
 
-    task = Task()
+    vset = VertexSetRandom(num=20)
+    vset.scale((0.01, 0.01))
+
+    task = Task(vset, 0.5, (10, 11))
     print(task.U)
     print(task.D)

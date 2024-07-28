@@ -104,3 +104,170 @@ def plot_nx_graph(
     plt.close()
 
 
+
+def plot_lines(
+    x, ys,
+    xlabel, ylabel,
+    labels, 
+    colors=None, 
+    adjust=(0.2, 0.2, 0.95, 0.95),
+    xscale='linear', yscale='linear',
+    xticklabel=None, yticklabel=None,
+    xreverse=False, yreverse=False,
+    xlim=None, ylim=None,
+    filename='pic.png',
+    ):
+    plt.figure()
+    plt.rc('font', size=20)
+    plt.subplots_adjust(*adjust)
+
+    if colors is None:
+        # get matpliotlib default color cycle
+        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    
+    for y, label, color, in zip(ys, labels, colors):
+        # find first y > ylim[1]
+        if ylim is not None:
+            idx = np.where(y > ylim[1])[0]
+            if len(idx) > 0:
+                y = y[:idx[0]]
+                x = x[:idx[0]]
+        plt.plot(x, y, label=label, color=color,)
+
+    plt.xlabel(xlabel, fontsize=20)
+    plt.ylabel(ylabel, fontsize=20)
+    plt.xscale(xscale)
+    plt.yscale(yscale)
+
+    if xticklabel is not None:
+        plt.ticklabel_format(axis='x', style=xticklabel, scilimits=(0,0))
+    if yticklabel is not None:
+        plt.ticklabel_format(axis='y', style=yticklabel, scilimits=(0,0))
+    if xreverse:
+        plt.gca().invert_xaxis()
+    if yreverse:
+        plt.gca().invert_yaxis()
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    # plt.title(title)
+    plt.legend()
+    plt.grid(True)
+
+    plt.savefig(filename)
+
+    plt.close()
+
+
+def plot_2y_lines(
+    x, ys1, ys2,
+    xlabel, y1_label, y2_label,
+    y1_labels, y2_labels,
+    y1_styles, y2_styles,
+    y1_colors, y2_colors,
+    y1_markers, y2_markers,
+    xscale='linear', y1_scale='linear', y2_scale='linear',
+    xreverse=False, y1_reverse=False, y2_reverse=False,
+    xlim=None, y1_lim=None, y2_lim=None,
+    filename='pic.png',
+    ):
+    """
+    two y-axis in one figure
+    """
+    if y1_labels is None:
+        y1_labels = ['' for _ in ys1]
+    if y2_labels is None:
+        y2_labels = ['' for _ in ys2]
+    fig, ax1 = plt.subplots()
+    plt.rc('font', size=16)
+    plt.subplots_adjust(0.18, 0.16, 0.96, 0.96)
+    ax2 = ax1.twinx()
+
+    for y1, label, style, color, marker in zip(ys1, y1_labels, y1_styles, y1_colors, y1_markers):
+        # find first y > ylim[1]
+        x1 = x
+        # cut off the tail
+        if y1_lim is not None:
+            idx = np.where(y1 > y1_lim[1])[0]
+            if len(idx) > 0:
+                y1 = y1[:idx[0]]
+                x1 = x[:idx[0]]
+        ax1.plot(
+            x1, y1, 
+            label=label, linestyle=style, color=color, marker=marker,
+            markerfacecolor='none', markersize=10
+            )
+    
+    for y2, label, style, color, marker in zip(ys2, y2_labels, y2_styles, y2_colors, y2_markers):
+        # cut off the tail
+        x2 = x
+        if y2_lim is not None:
+            idx = np.where(y2 > y2_lim[1])[0]
+            if len(idx) > 0:
+                y2 = y2[:idx[0]]
+                x2 = x[:idx[0]]
+        ax2.plot(x2, y2, 
+            label=label, linestyle=style, color=color, marker=marker,
+            markerfacecolor='none', markersize=10
+            )
+        
+    # force x ticks to be integers and multiple of 5, including 0
+    # ax1.set_xticks(np.arange(0, x[-1], 5))
+    ax1.set_xlabel(xlabel, fontsize=20)
+    ax1.set_ylabel(y1_label, fontsize=20)
+    ax2.set_ylabel(y2_label, fontsize=20)
+    ax1.set_xscale(xscale)
+    ax1.set_yscale(y1_scale)
+    ax2.set_yscale(y2_scale)
+    if xreverse:
+        ax1.invert_xaxis()
+    if y1_reverse:
+        ax1.invert_yaxis()
+    if y2_reverse:
+        ax2.invert_yaxis()
+    if xlim is not None:
+        ax1.set_xlim(*xlim)
+    if y1_lim is not None:
+        ax1.set_ylim(*y1_lim)
+    if y2_lim is not None:
+        ax2.set_ylim(*y2_lim)
+    # plt.title(title)
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    ax1.grid(True)
+    fig.tight_layout()
+
+    plt.savefig(filename)
+    plt.close()
+
+
+def plot_stack_bars(
+    xs: tuple, ys: dict,
+    width: float,
+    # colors,
+    xlabel=None, ylabel=None,
+    filename='stack.png'
+    ):
+
+    fig, ax = plt.subplots()
+    plt.rc('font', size=16)
+    plt.subplots_adjust(0.18, 0.16, 0.96, 0.96)
+    
+    bottom = np.zeros(len(xs))
+    for type, y in ys.items():
+        ax.bar(xs, y, width, label=type, bottom=bottom)
+        bottom += y
+
+    if xlabel is not None:
+        ax.set_xlabel(xlabel, fontsize=20)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel, fontsize=20)
+
+    ax.legend()
+    
+    fig.tight_layout()
+
+
+    plt.savefig(filename)
+    plt.close()

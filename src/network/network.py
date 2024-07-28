@@ -75,7 +75,8 @@ class Topology:
                     else:
                         nearest_found.sort(key=lambda x: x[1])
                         if distance < nearest_found[-1][1]:
-                            nearest_found[-1] = (v, distance)
+                            nearest_found.pop()
+                            nearest_found.append((v, distance))
             for v, _ in nearest_found:
                 self.graph.add_edge(u, v, length=distance, group=group)
 
@@ -123,17 +124,16 @@ class Topology:
 
     def make_clique(self, nodes: list, group: int=0):
         """
-        form a clique for the nodes
+        connect all pairs of nodes in the list
         """
+
         for i in range(len(nodes)):
             for j in range(i + 1, len(nodes)):
-                u = nodes[i]
-                v = nodes[j]
+                u, v = nodes[i], nodes[j]
                 u_pos = self.graph.nodes[u]['pos']
                 v_pos = self.graph.nodes[v]['pos']
                 distance = geo.distance(u_pos, v_pos).km
                 self.graph.add_edge(u, v, length=distance, group=group)
-
         self.update_edges()
 
     def segment_edge_line(self, u, v, point_num, group=0):
@@ -161,8 +161,6 @@ class Topology:
             distance = geo.distance(p_pos, q_pos).km
             self.graph.add_edge(p, q, length=distance, group=group)    
 
-        
-
     def segment_edge_clique(self, u, v, point_num, group=0):
         """
         segment the edge with length greater than threshold
@@ -183,7 +181,7 @@ class Topology:
 
         self.make_clique(clique_nodes, group)
 
-    def segment_edges(self, threshold: float, seg_len: float, group: int=0):
+    def segment_edges(self, threshold: float, seg_len: float, group: int=-1):
         """
         segment the edge with length greater than threshold
         form clique for the whole edge
@@ -191,9 +189,11 @@ class Topology:
         
         edges = list(self.graph.edges(data=True))
         for u, v, d in edges:
-            if d['length'] > threshold and d['group'] == group:
-                point_num = int(np.ceil(d['length'] / seg_len))
-                self.segment_edge_line(u, v, point_num, group)
+            if d['length'] > threshold:
+                if group == -1 or d['group'] == group:
+                    point_num = int(np.ceil(d['length'] / seg_len))
+                    self.segment_edge_line(u, v, point_num, group)
+
 
         self.update_edges()
         self.update_pairs()
@@ -331,8 +331,6 @@ class Topology:
 
         self.update_pairs()
 
-
-
     def add_nodes_random_between_pairs(self, pairs, group: int=0):
         """
         add random points to the network
@@ -436,6 +434,13 @@ class Topology:
             # round to 2 decimal places
             self.graph[u][v]['length'] = np.round(length, 2)
             self.graph[u][v]['channel_capacity'] = channel_capacity
+
+    def scale(self, scale):
+        """
+        multiply all edge lengths by a factor
+        """
+        for u, v, d in self.graph.edges(data=True):
+            self.graph[u][v]['length'] *= scale
 
     def plot(self, 
             node_label: str='id', 

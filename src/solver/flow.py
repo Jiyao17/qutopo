@@ -6,9 +6,10 @@ import numpy as np
 import networkx as nx
 import gurobipy as gp
 
-from ..network import VertexSet, VertexSource, Task, Topology
+from ..network import VertexSet, VertexSource, Task, Topology, VertexSetRandom
 from ..utils.plot import plot_nx_graph, plot_optimized_network
 from ..network.quantum import get_edge_length
+from ..utils.callback import callback
 
 
 class FlowSolver():
@@ -37,39 +38,50 @@ class FlowSolver():
         if output is False:
             self.model.setParam('OutputFlag', 0)
         self.obj_val = None
+        self.obj_vals = []
+        self.model._obj_vals = []
 
 
     def build(self):
         """
         build the linear model
         """
-        print("Building the model...")
+        if self.output:
+            print("Building the model...")
 
-        print("Adding variables...")
+        if self.output:
+            print("Adding variables...")
         start = time.time()
         self.add_variables()
         end = time.time()
-        print(f"Time spent: {end - start:.2f} seconds")
+        if self.output:
+            print(f"Time spent: {end - start:.2f} seconds")
 
-        print("Adding flow constraints...")
+        if self.output:
+            print("Adding flow constraints...")
         start = time.time()
         self.add_distribution_constr()
         end = time.time()
-        print(f"Time spent: {end - start:.2f} seconds")
-
-        print("Adding resource constraints...")
+        if self.output:
+            print(f"Time spent: {end - start:.2f} seconds")
+        
+        if self.output:
+            print("Adding resource constraints...")
         start = time.time()
         self.add_resource_constr()
         end = time.time()
-        print(f"Time spent: {end - start:.2f} seconds")
-
-        print("Adding budget definition...")
+        if self.output:
+            print(f"Time spent: {end - start:.2f} seconds")
+        
+        if self.output:
+            print("Adding budget definition...")
         start = time.time()
         self.add_budget_def()
         end = time.time()
-        print(f"Time spent: {end - start:.2f} seconds")
-
-        print("Model building done.")
+        if self.output:
+            print(f"Time spent: {end - start:.2f} seconds")
+        if self.output:
+            print("Model building done.")
 
     def add_variables(self):
         """
@@ -266,13 +278,16 @@ class FlowSolver():
         """
         self.model.setObjective(self.budget, gp.GRB.MINIMIZE)
 
-        self.model.optimize()
+        self.model.optimize(callback=callback)
 
         try:
             self.obj_val = self.model.objVal
+            self.obj_vals = self.model._obj_vals
         except AttributeError:
-            print("Model is not solved.")
-            print("Probably infeasible or unbounded.")
+            self.obj_val = None
+            self.obj_vals = []
+            print("Flow model is not solved.")
+            # print("Probably infeasible or unbounded.")
 
 
 class FlowSolverRelaxed(FlowSolver):
@@ -430,24 +445,27 @@ if __name__ == "__main__":
     random.seed(seed)
     np.random.seed(seed)
 
-    vsrc = VertexSource.NOEL
-    vset = VertexSet(vsrc)
+    # vsrc = VertexSource.NOEL
+    # vset = VertexSet(vsrc)
+    vset = VertexSetRandom(10)
+    vset.scale((0.01, 0.01))
     task = Task(vset, 0.5, (10, 11))
     net = Topology(task=task)
-    city_num = len(net.graph.nodes)   
-    seg_len = get_edge_length(10, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
+    # city_num = len(net.graph.nodes)   
+    # seg_len = get_edge_length(10, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
+    seg_len = 150
     print(f"Suggested edge length: {seg_len}")
 
 
-    net.connect_nodes_nearest(5, 1)
+    net.connect_nodes_nearest(5)
     # net.connect_nodes_radius(200, 1)
-    net.connect_nearest_component(1)
-    net.segment_edges(150, 150, 1)
+    net.connect_nearest_component()
+    net.segment_edges(150, 150)
     net.plot(None, None, './result/flow/fig.png')
 
     print(len(net.graph.nodes), len(net.graph.edges))
     start = time.time()
-    solver = FlowSolver(net, 600, 0.05, output=True)
+    solver = FlowSolver(net, 600, 0.01, output=True)
     # solver = FlowSolverNonCost(net, output=True)
     # solver = FlowSolverMinResource(net, output=True)
     solver.build()

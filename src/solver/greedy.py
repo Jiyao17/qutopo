@@ -20,6 +20,7 @@ class GreedySolver():
         k: int=10, 
         weight: str=None,
         greedy_opt: str='cost',
+        swap_func: 'function'=complete_swap
         ) -> None:
         """
         network: Topology
@@ -41,6 +42,7 @@ class GreedySolver():
         self.k = k
         self.weight = weight
         self.greed_opt = greedy_opt
+        self.swap_func = swap_func
 
         self.U = network.U
         self.D = network.D
@@ -48,7 +50,7 @@ class GreedySolver():
         self.obj_val = None
         self.paths = self.all_pairs_YenKSP(weight='length')
         self.add_variables()
-        self.alpha, self.beta = self.solve_paths(self.paths)
+        self.alpha, self.beta = self.solve_paths(self.paths, swap_func)
 
     def all_pairs_YenKSP(self, weight=None):
         """
