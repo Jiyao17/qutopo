@@ -105,6 +105,47 @@ def plot_nx_graph(
 
 
 
+
+def plot_simple_topology(
+        graph: nx.Graph,
+        Im=None, Ic=None,
+        filename: str='./result/fig.png'
+        ):
+    """
+    plot the network
+    """
+    graph = deepcopy(graph)
+    pos: dict = nx.get_node_attributes(graph, 'pos')
+    # reverse latitude and longitude
+    # for node in pos:
+    #     lat, lon = pos[node]
+    #     if not 0 < lat < 90 or not -180 < lon < 180:
+    #         raise ValueError(f'Invalid latitude and longitude: {lat}, {lon}')
+    pos = {node: (lon, lat) for node, (lat, lon) in pos.items()}
+
+    if Im is not None:
+        Im = {node: 1 if Im[node] > 0 else 0 for node in Im}
+    else:
+        Im = {node: 1 for node in graph.nodes}
+    if Ic is not None:
+        Ic = {edge: 1 if Ic[edge] > 0 else 0 for edge in Ic}
+    else:
+        Ic = {edge: 1 for edge in graph.edges}
+
+    # node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'red' for node in graph.nodes]
+    node_colors = ['blue' if Im[node] == 1 else 'red' for node in Im]
+    graph.remove_edges_from([edge for edge in Ic if Ic[edge] == 0])
+
+    nx.draw(graph, pos, with_labels=False, 
+        node_color=node_colors, 
+        edge_color='grey', width=1, edge_cmap=plt.cm.Blues
+    )
+
+    plt.savefig(filename)
+    plt.close()
+
+
+
 def plot_lines(
     x, ys,
     xlabel, ylabel,

@@ -13,7 +13,7 @@ from ..solver import PathSolver, FlowSolver, GreedySolver
 from ..network import get_edge_length
 from ..network.quantum import complete_swap, sequential_swap, HWParam
 
-from ..utils.plot import plot_stack_bars
+from ..utils.plot import plot_stack_bars, plot_optimized_network, plot_simple_topology
 
 
 
@@ -42,7 +42,7 @@ def run_path_solver(
     node_budget = solver.node_budget_val
     edge_budget = solver.edge_budget_val
     
-    return total_time, times, objs, node_budget, edge_budget
+    return total_time, times, objs, node_budget, edge_budget, solver
 
 def compare_price_ratio(params, repeat=1):
     """
@@ -98,10 +98,15 @@ def compare_price_ratio(params, repeat=1):
 
         # fetch all results
         for j, result in enumerate(results):
-            total_time, times, objs, node_budget, edge_budget = result.get()
+            total_time, times, objs, node_budget, edge_budget, solver = result.get()
             if node_budget is not None and edge_budget is not None:
                 node_budgets[i, j] = node_budget
                 edge_budgets[i, j] = edge_budget
+
+        # use last solution for network topology
+        Im, Ic = solver.Im, solver.Ic
+        plot_simple_topology(net.graph, filename=f'./result/ratio/topology_{ratio}.png')
+        plot_simple_topology(net.graph, Im, Ic, filename=f'./result/topology_{ratio}.png')
 
         # average the results
         avg_node_budgets = np.nanmean(node_budgets, axis=1)
@@ -129,6 +134,11 @@ def compare_price_ratio(params, repeat=1):
             xlabel='Price Ratio', ylabel='Budget Percentage',
             filename=f'ratio_percentage.png'
             )
+        
+        # plot the optimized network
+        plot_optimized_network(net, net.hw_params, net.task, net.G, net.paths, net.flows, net.node_budget, net.edge_budget, filename=f'network_{ratio}.png')
+
+
 if __name__ == '__main__':
     # set gurobi environment
     # mute parameter setting
