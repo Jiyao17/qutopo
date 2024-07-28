@@ -122,22 +122,27 @@ def plot_simple_topology(
     #     if not 0 < lat < 90 or not -180 < lon < 180:
     #         raise ValueError(f'Invalid latitude and longitude: {lat}, {lon}')
     pos = {node: (lon, lat) for node, (lat, lon) in pos.items()}
+    node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'green' for node in graph.nodes]
+    # node_colors = ['blue' for node in graph.nodes]
+    node_sizes = [ 200 if graph.nodes[node]['group'] == 0 else 50 for node in graph.nodes]
 
-    if Im is not None:
-        Im = {node: 1 if Im[node] > 0 else 0 for node in Im}
-    else:
+
+    if Im is None:
         Im = {node: 1 for node in graph.nodes}
-    if Ic is not None:
-        Ic = {edge: 1 if Ic[edge] > 0 else 0 for edge in Ic}
-    else:
+    if Ic is None:
         Ic = {edge: 1 for edge in graph.edges}
 
     # node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'red' for node in graph.nodes]
     node_colors = ['blue' if Im[node] == 1 else 'red' for node in Im]
-    graph.remove_edges_from([edge for edge in Ic if Ic[edge] == 0])
+    # remove all edges
+    graph.remove_edges_from(list(graph.edges))
+    # add edges with channel utilization
+    for edge in Ic:
+        u, v = edge
+        graph.add_edge(u, v, weight=Ic[edge])
 
     nx.draw(graph, pos, with_labels=False, 
-        node_color=node_colors, 
+        node_color=node_colors, node_size=node_sizes,
         edge_color='grey', width=1, edge_cmap=plt.cm.Blues
     )
 

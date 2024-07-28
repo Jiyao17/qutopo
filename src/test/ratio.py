@@ -41,8 +41,11 @@ def run_path_solver(
 
     node_budget = solver.node_budget_val
     edge_budget = solver.edge_budget_val
+
+    Im = {node: 1 if solver.Im[node].x > 0 else 0 for node in solver.Im}
+    Ic = {edge: 1 if solver.Ic[edge].x > 0 else 0 for edge in solver.Ic}
     
-    return total_time, times, objs, node_budget, edge_budget, solver
+    return total_time, times, objs, node_budget, edge_budget, Im, Ic
 
 def compare_price_ratio(params, repeat=1):
     """
@@ -98,15 +101,14 @@ def compare_price_ratio(params, repeat=1):
 
         # fetch all results
         for j, result in enumerate(results):
-            total_time, times, objs, node_budget, edge_budget, solver = result.get()
+            total_time, times, objs, node_budget, edge_budget, Im, Ic = result.get()
             if node_budget is not None and edge_budget is not None:
                 node_budgets[i, j] = node_budget
                 edge_budgets[i, j] = edge_budget
 
         # use last solution for network topology
-        Im, Ic = solver.Im, solver.Ic
-        plot_simple_topology(net.graph, filename=f'./result/ratio/topology_{ratio}.png')
-        plot_simple_topology(net.graph, Im, Ic, filename=f'./result/topology_{ratio}.png')
+        plot_simple_topology(net.graph, filename='./result/ratio/topology_original.png')
+        plot_simple_topology(net.graph, Im, Ic, filename=f'./result/ratio/topology_{ratio}.png')
 
         # average the results
         avg_node_budgets = np.nanmean(node_budgets, axis=1)
@@ -135,9 +137,6 @@ def compare_price_ratio(params, repeat=1):
             filename=f'ratio_percentage.png'
             )
         
-        # plot the optimized network
-        plot_optimized_network(net, net.hw_params, net.task, net.G, net.paths, net.flows, net.node_budget, net.edge_budget, filename=f'network_{ratio}.png')
-
 
 if __name__ == '__main__':
     # set gurobi environment
