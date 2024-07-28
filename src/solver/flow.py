@@ -41,6 +41,9 @@ class FlowSolver():
         self.obj_vals = []
         self.model._obj_vals = []
 
+        # allow only single thread
+        # self.model.setParam('Threads', 1)
+
 
     def build(self):
         """

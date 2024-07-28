@@ -24,7 +24,7 @@ from ..utils.plot import plot_2y_lines, plot_lines
 
 def run_flow_solver(
     network: Topology,
-    time_limit=1000,
+    time_limit=600,
     mip_gap=0.01,
     ):
     start = time.time()
@@ -45,7 +45,7 @@ def run_path_solver(
     network: Topology,
     k = 100, 
     edge_weight='length', 
-    time_limit=1000,
+    time_limit=600,
     mip_gap=0.01,
     swap_func=complete_swap,
     ):
@@ -83,7 +83,7 @@ def run_greedy_solver(
 
     return total_time, obj
 
-def compare_efficiency(node_num, params, repeat=1):
+def compare_efficiency(node_num, scale, params, repeat=1):
     """
     This set of evaluations compares the efficiency of
         -flow solver
@@ -112,18 +112,18 @@ def compare_efficiency(node_num, params, repeat=1):
     # vsrc = VertexSource.NOEL
     # vset = VertexSet(vsrc)
     vset = VertexSetRandom(node_num)
-    vset.scale((0.01, 0.01))
+    vset.scale(scale)
     demand = 10
     task = Task(vset, 0.5, (demand, demand+1))
     raw_net = Topology(task=task, hw_params=params)
 
     flow_density_control = 2
     if node_num <= 50:
-        flow_density_control = 4
-    if node_num <= 35:
-        flow_density_control = 6
-    if node_num <= 30:
         flow_density_control = 8
+    if node_num <= 35:
+        flow_density_control = 8
+    if node_num <= 30:
+        flow_density_control = 10
     if node_num <= 20:
         flow_density_control = 10
     if node_num <= 10:
@@ -134,7 +134,6 @@ def compare_efficiency(node_num, params, repeat=1):
 
         for j in range(repeat):
             print(f"repeat {j}")
-            pool = mp.Pool(5)
 
             net = copy.deepcopy(raw_net)
             # seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
@@ -146,48 +145,27 @@ def compare_efficiency(node_num, params, repeat=1):
 
             # run each solver in one process
             if density <= flow_density_control:
-                flow_path_result = pool.apply_async(run_flow_solver, args=(net, 600))
-            k = 100
-            opt_path_result = pool.apply_async(run_path_solver, args=(net, k))
-            seq_path_result = pool.apply_async(
-                run_path_solver, 
-                args=(net, k),
-                kwds={'swap_func': sequential_swap}
-                )
-            opt_greedy_result = pool.apply_async(run_greedy_solver, args=(net, k))
-            seq_greedy_result = pool.apply_async(
-                run_greedy_solver, 
-                args=(net, k),
-                kwds={'swap_func': sequential_swap}
-                )
-
-            # wait for all processes to finish
-            pool.close()
-            pool.join()
-
-            # fetch all results
-            if density <= flow_density_control:
-                total_time, times, objs = flow_path_result.get()
+                total_time, times, objs = run_flow_solver(net)
                 if len(objs) > 0:
                     flow_objs[i, j] = objs[-1]
                     flow_times[i, j] = total_time
-            
-            total_time, times, objs = opt_path_result.get()
+
+            k = 100
+            total_time, times, objs = run_path_solver(net, k)
             if len(objs) > 0:
                 opt_path_objs[i, j] = objs[-1]
                 opt_path_times[i, j] = total_time
-            
-            total_time, times, objs = seq_path_result.get()
+            total_time, times, objs = run_path_solver(net, k, swap_func=sequential_swap)
             if len(objs) > 0:
                 seq_path_objs[i, j] = objs[-1]
                 seq_path_times[i, j] = total_time
 
-            total_time, obj = opt_greedy_result.get()
-            if len(objs) > 0:
+            total_time, obj = run_greedy_solver(net, k)
+            if obj is not None:
                 opt_greedy_objs[i, j] = obj
                 opt_greedy_times[i, j] = total_time
 
-            total_time, obj = seq_greedy_result.get()
+            total_time, obj = run_greedy_solver(net, k, swap_func=sequential_swap)
             if obj is not None:
                 seq_greedy_objs[i, j] = obj
                 seq_greedy_times[i, j] = total_time
@@ -292,7 +270,8 @@ if __name__ == '__main__':
     params['swap_prob'] = 0.75
 
     # node_nums = [20, 35, 50]
-    node_nums = [10, 20, 30, 35, 50]
-    for node_num in node_nums:
-        compare_efficiency(node_num, params, repeat=1)
+    node_nums = [10, 10, 10]
+    scales = [(0.005, 0.005), (0.01, 0.01), (0.02, 0.02)]
+    for node_num, scale in zip(node_nums, scales):
+        compare_efficiency(node_num, scale, params, repeat=1)
         # load_plot_result(node_num)

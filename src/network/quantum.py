@@ -37,6 +37,37 @@ def complete_swap(costs: 'list[float]', swap_prob: float):
     
     return costs
 
+
+def relaxed_complete_swap(costs: 'list[float]', swap_prob: float):
+    """
+    conduct swaps as a  relaxed complete swapping tree
+    each edge is a leaf
+    each swapping is a branching node
+    """
+    # tree configure
+    leaf_num = len(costs)
+    tree_depth = int(np.ceil(np.log2(leaf_num)))
+
+    # leaf numbers in the second deepest and deepest level
+    second_deepest_num = 2 ** tree_depth - leaf_num
+    deepest_num = leaf_num - second_deepest_num
+
+    # single leaf cost contribution to the total cost
+    sd_cost = 1/swap_prob**(tree_depth-1)
+    d_cost = 1/swap_prob**tree_depth
+
+    # costs array of all nodes
+    # arrange deepest nodes from left or right randomly
+    random_num = np.random.rand()
+    if random_num < 0.5:
+        costs = [d_cost] * deepest_num + [sd_cost] * second_deepest_num
+    else:
+        costs = [sd_cost] * second_deepest_num + [d_cost] * deepest_num
+    
+    
+    return costs
+
+
 def sequential_swap(costs: 'list[float]', swap_prob: float):
     """
     conduct swaps as a sequential binary tree
@@ -75,15 +106,17 @@ def get_edge_length(capacity: float, photon_rate: float, fiber_loss: float):
 
 
 if __name__ == '__main__':
-    # costs = [1,] * 7
-    # swap_prob = 0.5
+    costs = [1,] * 13
+    swap_prob = 0.5
 
-    # costs = complete_swap(costs, swap_prob)
-    # print(costs)
-    # costs = sequential_swap(costs, swap_prob)
-    # print(costs)
+    costs = complete_swap(costs, swap_prob)
+    print(costs)
+    costs = sequential_swap(costs, swap_prob)
+    print(costs)
+    costs = relaxed_complete_swap(costs, swap_prob)
+    print(costs)
 
-    cap = get_edge_capacity(100, 1e4, 0.2)
-    print(cap)
-    length = get_edge_length(100, 1e4, 0.2)
-    print(length)
+    # cap = get_edge_capacity(100, 1e4, 0.2)
+    # print(cap)
+    # length = get_edge_length(100, 1e4, 0.2)
+    # print(length)

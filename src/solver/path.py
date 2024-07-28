@@ -48,6 +48,10 @@ class PathSolver():
 
         self.model._obj_vals = []
 
+        # allow only single thread
+        # self.model.setParam('Threads', 1)
+
+
     def prepare_paths(self, swap_func:callable=complete_swap, existing_paths: dict=None):
         if self.output:
             print("searching paths...")
@@ -383,8 +387,8 @@ if __name__ == "__main__":
     vsrc = VertexSource.MISSOURI
     vset = VertexSet(vsrc)
 
-    vset = VertexSetRandom(10)
-    vset.scale()
+    # vset = VertexSetRandom(10)
+    # vset.scale()
 
     demand = 10
     task = Task(vset, 0.5, (demand, demand+1))

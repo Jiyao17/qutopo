@@ -17,6 +17,7 @@ class VertexSource(enum.Enum):
     # INS = 'topology/INS.graphml'
     # ION = 'topology/ION.graphml'
     MISSOURI = 'topology/Missouri.graphml'
+    RENATOR = 'topology/Renater.graphml'
     NOEL = 'topology/Noel.graphml'
 
     TRIANGLE = 'topology/Triangle.graphml'
@@ -104,7 +105,7 @@ if __name__ == '__main__':
     # print(net.G.nodes)
     # print(net.G.edges(data='length', keys=True))
 
-    vsrc = VertexSource.NOEL
+    vsrc = VertexSource.RENATOR
     vset = VertexSet(vsrc)
 
     # vset = VertexSetRandom(10)
