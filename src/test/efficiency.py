@@ -24,7 +24,7 @@ from ..utils.plot import plot_2y_lines, plot_lines
 
 def run_flow_solver(
     network: Topology,
-    time_limit=600,
+    time_limit=1000,
     mip_gap=0.01,
     ):
     start = time.time()
@@ -45,7 +45,7 @@ def run_path_solver(
     network: Topology,
     k = 100, 
     edge_weight='length', 
-    time_limit=600,
+    time_limit=1000,
     mip_gap=0.01,
     swap_func=complete_swap,
     ):
@@ -122,6 +122,8 @@ def compare_efficiency(node_num, params, repeat=1):
         flow_density_control = 4
     if node_num <= 35:
         flow_density_control = 6
+    if node_num <= 30:
+        flow_density_control = 8
     if node_num <= 20:
         flow_density_control = 10
     if node_num <= 10:
