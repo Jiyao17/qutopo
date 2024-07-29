@@ -61,12 +61,16 @@ def compare_price_ratio(params, repeat=1):
     
     density = 5
     k = 100
-    xs = ['1:10', '1:5', '1:1', '5:1', '10:1']
-    ratios = [0.1, 0.2, 1, 5, 10]
+    xs = ['1:10', '1:5', '1:1', '5:1', '10:1', '50:1', '100:1']
+    ratios = [0.1, 0.2, 1, 5, 10, 50, 100]
 
     node_budgets = np.zeros((len(ratios), repeat)) * np.nan
     edge_budgets = np.zeros((len(ratios), repeat)) * np.nan
 
+    vsrc = VertexSource.NOEL
+    vset = VertexSet(vsrc)
+    demand = 10
+    task = Task(vset, 0.5, (demand, demand+1))
     for i, ratio in enumerate(ratios):
         print(f"ratio {ratio}")
         
@@ -76,15 +80,13 @@ def compare_price_ratio(params, repeat=1):
         for j in range(repeat):
             print(f"repeat {j}")
 
-            vsrc = VertexSource.NOEL
-            vset = VertexSet(vsrc)
-            demand = 10
-            task = Task(vset, 0.5, (demand, demand+1))
             params['pm'] = ratio
             params['pm_install'] = ratio*10
             params['pc'] = 1
             params['pc_install'] = 10
-            net = Topology(task=task, hw_params=params)
+
+            temp_task = copy.deepcopy(task)
+            net = Topology(task=temp_task, hw_params=params)
             # seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
             seg_len = 150
             net.connect_nodes_nearest(density)
@@ -110,32 +112,32 @@ def compare_price_ratio(params, repeat=1):
         plot_simple_topology(net.graph, filename='./result/ratio/topology_original.png')
         plot_simple_topology(net.graph, Im, Ic, filename=f'./result/ratio/topology_{ratio}.png')
 
-        # average the results
-        avg_node_budgets = np.nanmean(node_budgets, axis=1)
-        avg_edge_budgets = np.nanmean(edge_budgets, axis=1)
+        # # average the results
+        # avg_node_budgets = np.nanmean(node_budgets, axis=1)
+        # avg_edge_budgets = np.nanmean(edge_budgets, axis=1)
 
-        # prepare for plotting
-        xs = ['1:10', '1:5', '1:1', '5:1', '10:1']
-        ys = {'Node Budget': avg_node_budgets, 'Edge Budget': avg_edge_budgets}
+        # # prepare for plotting
+        # xs = ['1:10', '1:5', '1:1', '5:1', '10:1', ]
+        # ys = {'Node Budget': avg_node_budgets, 'Edge Budget': avg_edge_budgets}
 
-        # plot
-        plot_stack_bars(
-            xs, ys, 
-            0.6, 
-            # colors=['blue', 'green'],
-            xlabel='Price Ratio', ylabel='Budget',
-            filename=f'ratio.png'
-            )
-        # percentage
-        avg_total_budgets = avg_node_budgets + avg_edge_budgets
-        ys = {'Node Budget': avg_node_budgets/avg_total_budgets, 'Edge Budget': avg_edge_budgets/avg_total_budgets}
-        plot_stack_bars(
-            xs, ys, 
-            0.6, 
-            # colors=['blue', 'green'],
-            xlabel='Price Ratio', ylabel='Budget Percentage',
-            filename=f'ratio_percentage.png'
-            )
+        # # plot
+        # plot_stack_bars(
+        #     xs, ys, 
+        #     0.6, 
+        #     # colors=['blue', 'green'],
+        #     xlabel='Price Ratio', ylabel='Budget',
+        #     filename=f'ratio.png'
+        #     )
+        # # percentage
+        # avg_total_budgets = avg_node_budgets + avg_edge_budgets
+        # ys = {'Node Budget': avg_node_budgets/avg_total_budgets, 'Edge Budget': avg_edge_budgets/avg_total_budgets}
+        # plot_stack_bars(
+        #     xs, ys, 
+        #     0.6, 
+        #     # colors=['blue', 'green'],
+        #     xlabel='Price Ratio', ylabel='Budget Percentage',
+        #     filename=f'ratio_percentage.png'
+        #     )
         
 
 if __name__ == '__main__':
