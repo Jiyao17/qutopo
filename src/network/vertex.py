@@ -15,10 +15,13 @@ class VertexSource(enum.Enum):
 
     # CNET = 'topology/NSFCNET.graphml'
     # INS = 'topology/INS.graphml'
-    # ION = 'topology/ION.graphml'
+    ION = 'topology/ION.graphml'
     MISSOURI = 'topology/Missouri.graphml'
     RENATOR = 'topology/Renater.graphml'
     NOEL = 'topology/Noel.graphml'
+    # LOUISANA = 'topology/Louisiana.graphml'
+    # CYNET = 'topology/Cynet.graphml'
+    EENET = 'topology/EEnet.graphml'
 
     TRIANGLE = 'topology/Triangle.graphml'
     PAIR = 'topology/Pair.graphml'
@@ -105,7 +108,7 @@ if __name__ == '__main__':
     # print(net.G.nodes)
     # print(net.G.edges(data='length', keys=True))
 
-    vsrc = VertexSource.RENATOR
+    vsrc = VertexSource.EENET
     vset = VertexSet(vsrc)
 
     # vset = VertexSetRandom(10)

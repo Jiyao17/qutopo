@@ -384,7 +384,7 @@ class PathSolverMinResource(PathSolverNonCost):
 
 
 if __name__ == "__main__":
-    vsrc = VertexSource.MISSOURI
+    vsrc = VertexSource.EENET
     vset = VertexSet(vsrc)
 
     # vset = VertexSetRandom(10)
@@ -393,6 +393,13 @@ if __name__ == "__main__":
     demand = 10
     task = Task(vset, 0.5, (demand, demand+1))
     net = Topology(task=task)
+
+    net.make_clique(list(net.graph.nodes(data=False)))
+    # find longest edge
+    edge = max(net.graph.edges(data='length'), key=lambda x: x[2])
+    print(edge)
+
+
     seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
 
     net.connect_nodes_nearest(6)

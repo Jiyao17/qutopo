@@ -14,7 +14,7 @@ from ..network import Topology, VertexSource, VertexSet, Task, VertexSetRandom
 from ..solver import PathSolver, FlowSolver, GreedySolver
 
 from ..network import get_edge_length
-from ..network.quantum import complete_swap, sequential_swap, HWParam
+from ..network.quantum import complete_swap, sequential_swap, HWParam, relaxed_complete_swap
 
 from ..utils.plot import plot_2y_lines, plot_lines
 
@@ -36,10 +36,12 @@ def run_flow_solver(
     end = time.time()
 
     total_time = end - start
-    times = [ solver.obj_vals[i][0] for i in range(len(solver.obj_vals)) ]
-    objs = [ solver.obj_vals[i][1] for i in range(len(solver.obj_vals)) ]
+    try:
+        obj = solver.obj_val
+    except:
+        obj = None
 
-    return total_time, times, objs
+    return total_time, obj
 
 def run_path_solver(
     network: Topology,
@@ -47,7 +49,7 @@ def run_path_solver(
     edge_weight='length', 
     time_limit=600,
     mip_gap=0.01,
-    swap_func=complete_swap,
+    swap_func=relaxed_complete_swap,
     ):
 
     start = time.time()
@@ -59,10 +61,12 @@ def run_path_solver(
     end = time.time()
 
     total_time = end - start
-    times = [ solver.obj_vals[i][0] for i in range(len(solver.obj_vals)) ]
-    objs = [ solver.obj_vals[i][1] for i in range(len(solver.obj_vals)) ]
+    try:
+        obj = solver.obj_val
+    except:
+        obj = None
 
-    return total_time, times, objs
+    return total_time, obj
 
 def run_greedy_solver(
     network: Topology,
@@ -83,7 +87,7 @@ def run_greedy_solver(
 
     return total_time, obj
 
-def compare_efficiency(node_num, scale, params, repeat=1):
+def compare_efficiency(vsrc:VertexSource, params, repeat=1):
     """
     This set of evaluations compares the efficiency of
         -flow solver
@@ -109,25 +113,27 @@ def compare_efficiency(node_num, scale, params, repeat=1):
     seq_greedy_objs = np.zeros((len(densities), repeat)) * np.nan
     seq_greedy_times = np.zeros((len(densities), repeat)) * np.nan
 
+    # vsrc = VertexSource.EENET
     # vsrc = VertexSource.NOEL
-    # vset = VertexSet(vsrc)
-    vset = VertexSetRandom(node_num)
-    vset.scale(scale)
+    # vsrc = VertexSource.RENATOR
+    vset = VertexSet(vsrc)
+    # vset = VertexSetRandom(node_num)
+    # vset.scale(scale)
     demand = 10
     task = Task(vset, 0.5, (demand, demand+1))
     raw_net = Topology(task=task, hw_params=params)
 
-    flow_density_control = 2
-    if node_num <= 50:
-        flow_density_control = 8
-    if node_num <= 35:
-        flow_density_control = 8
-    if node_num <= 30:
-        flow_density_control = 10
-    if node_num <= 20:
-        flow_density_control = 10
-    if node_num <= 10:
-        flow_density_control = 10
+    flow_density_control = 10000
+    # if node_num <= 50:
+    #     flow_density_control = 8
+    # if node_num <= 35:
+    #     flow_density_control = 8
+    # if node_num <= 30:
+    #     flow_density_control = 10
+    # if node_num <= 20:
+    #     flow_density_control = 10
+    # if node_num <= 10:
+    #     flow_density_control = 10
 
     for i, density in enumerate(densities):
         print(f"density {density}")
@@ -145,19 +151,20 @@ def compare_efficiency(node_num, scale, params, repeat=1):
 
             # run each solver in one process
             if density <= flow_density_control:
-                total_time, times, objs = run_flow_solver(net)
-                if len(objs) > 0:
-                    flow_objs[i, j] = objs[-1]
+                total_time, obj = run_flow_solver(net)
+                if obj is not None:
+                    flow_objs[i, j] = obj
                     flow_times[i, j] = total_time
 
             k = 100
-            total_time, times, objs = run_path_solver(net, k)
-            if len(objs) > 0:
-                opt_path_objs[i, j] = objs[-1]
+            total_time, obj = run_path_solver(net, k)
+            if obj is not None:
+                opt_path_objs[i, j] = obj
                 opt_path_times[i, j] = total_time
-            total_time, times, objs = run_path_solver(net, k, swap_func=sequential_swap)
-            if len(objs) > 0:
-                seq_path_objs[i, j] = objs[-1]
+
+            total_time, obj = run_path_solver(net, k, swap_func=sequential_swap)
+            if obj is not None:
+                seq_path_objs[i, j] = obj
                 seq_path_times[i, j] = total_time
 
             total_time, obj = run_greedy_solver(net, k)
@@ -269,9 +276,8 @@ if __name__ == '__main__':
     params = copy.deepcopy(HWParam)
     params['swap_prob'] = 0.75
 
-    # node_nums = [20, 35, 50]
-    node_nums = [10, 10, 10]
-    scales = [(0.005, 0.005), (0.01, 0.01), (0.02, 0.02)]
-    for node_num, scale in zip(node_nums, scales):
-        compare_efficiency(node_num, scale, params, repeat=1)
-        # load_plot_result(node_num)
+    # vsrcs = [VertexSource.EENET, VertexSource.NOEL, VertexSource.RENATOR]
+    vsrcs = [VertexSource.NOEL, VertexSource.RENATOR]
+    for vsrc in vsrcs:
+        compare_efficiency(vsrc, params, repeat=1)
+    
