@@ -123,17 +123,18 @@ def compare_efficiency(vsrc:VertexSource, params, repeat=1):
     task = Task(vset, 0.5, (demand, demand+1))
     raw_net = Topology(task=task, hw_params=params)
 
+    node_num = len(vset.vertices)
     flow_density_control = 10000
-    # if node_num <= 50:
-    #     flow_density_control = 8
-    # if node_num <= 35:
-    #     flow_density_control = 8
-    # if node_num <= 30:
-    #     flow_density_control = 10
-    # if node_num <= 20:
-    #     flow_density_control = 10
-    # if node_num <= 10:
-    #     flow_density_control = 10
+    if node_num <= 50:
+        flow_density_control = 6
+    if node_num <= 35:
+        flow_density_control = 8
+    if node_num <= 30:
+        flow_density_control = 10
+    if node_num <= 20:
+        flow_density_control = 10
+    if node_num <= 10:
+        flow_density_control = 10
 
     for i, density in enumerate(densities):
         print(f"density {density}")
@@ -277,7 +278,7 @@ if __name__ == '__main__':
     params['swap_prob'] = 0.75
 
     vsrcs = [VertexSource.EENET, VertexSource.NOEL, VertexSource.RENATOR]
-    # vsrcs = [VertexSource.NOEL, VertexSource.RENATOR]
+    vsrcs = [VertexSource.RENATOR]
     for vsrc in vsrcs:
-        compare_efficiency(vsrc, params, repeat=5)
+        compare_efficiency(vsrc, params, repeat=1)
     
