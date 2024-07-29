@@ -204,7 +204,7 @@ def compare_efficiency(vsrc:VertexSource, params, repeat=1):
 
             pickle.dump(
                 (densities, ys1, ys2, y1_labels, y2_labels),
-                open(f'./result/efficiency/efficiency-{vset.name}.pkl', 'wb')
+                open(f'./result/efficiency/efficiency-{vset.name}-avg.pkl', 'wb')
             )
 
             plot_lines(
@@ -276,8 +276,8 @@ if __name__ == '__main__':
     params = copy.deepcopy(HWParam)
     params['swap_prob'] = 0.75
 
-    # vsrcs = [VertexSource.EENET, VertexSource.NOEL, VertexSource.RENATOR]
-    vsrcs = [VertexSource.NOEL, VertexSource.RENATOR]
+    vsrcs = [VertexSource.EENET, VertexSource.NOEL, VertexSource.RENATOR]
+    # vsrcs = [VertexSource.NOEL, VertexSource.RENATOR]
     for vsrc in vsrcs:
-        compare_efficiency(vsrc, params, repeat=1)
+        compare_efficiency(vsrc, params, repeat=5)
     
