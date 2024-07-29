@@ -42,8 +42,8 @@ def run_path_solver(
     node_budget = solver.node_budget_val
     edge_budget = solver.edge_budget_val
 
-    Im = {node: 1 if solver.Im[node].x > 0 else 0 for node in solver.Im}
-    Ic = {edge: 1 if solver.Ic[edge].x > 0 else 0 for edge in solver.Ic}
+    Im = {node: 1 if solver.m[node].x > 0 else 0 for node in solver.m}
+    Ic = {edge: 1 if solver.c[edge].x > 0 else 0 for edge in solver.c}
     
     return total_time, times, objs, node_budget, edge_budget, Im, Ic
 

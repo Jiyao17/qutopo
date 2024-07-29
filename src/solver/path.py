@@ -8,7 +8,7 @@ import gurobipy as gp
 
 from ..network.quantum import get_edge_length
 from ..network import VertexSet, VertexSource, Task, Topology, VertexSetRandom, complete_swap, sequential_swap
-from ..utils.plot import plot_nx_graph, plot_optimized_network
+from ..utils.plot import plot_nx_graph, plot_optimized_network, plot_simple_topology
 from ..utils.callback import callback
 
 
@@ -384,7 +384,7 @@ class PathSolverMinResource(PathSolverNonCost):
 
 
 if __name__ == "__main__":
-    vsrc = VertexSource.EENET
+    vsrc = VertexSource.NOEL
     vset = VertexSet(vsrc)
 
     # vset = VertexSetRandom(10)
@@ -394,21 +394,24 @@ if __name__ == "__main__":
     task = Task(vset, 0.5, (demand, demand+1))
     net = Topology(task=task)
 
-    net.make_clique(list(net.graph.nodes(data=False)))
+    # net.make_clique(list(net.graph.nodes(data=False)))
     # find longest edge
-    edge = max(net.graph.edges(data='length'), key=lambda x: x[2])
-    print(edge)
+    # edge = max(net.graph.edges(data='length'), key=lambda x: x[2])
+    # print(edge)
 
 
-    seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
+    # seg_len = get_edge_length(demand, net.hw_params['photon_rate'], net.hw_params['fiber_loss'])
+    seg_len = 150
 
-    net.connect_nodes_nearest(6)
+    net.connect_nodes_nearest(5, 1)
     # make sure the network is connected
-    net.connect_nearest_component()
+    net.connect_nearest_component(1)
     net.segment_edges(seg_len, seg_len)
 
 
-    net.plot(None, None, './result/path/fig.png')
+    # net.plot(None, None, './result/path/fig.png')
+
+    plot_simple_topology(net.graph, filename='./result/path/fig.png')
 
     # print(net.graph.edges(data=True))
 

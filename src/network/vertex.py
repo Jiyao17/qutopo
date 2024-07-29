@@ -108,7 +108,7 @@ if __name__ == '__main__':
     # print(net.G.nodes)
     # print(net.G.edges(data='length', keys=True))
 
-    vsrc = VertexSource.EENET
+    vsrc = VertexSource.RENATOR
     vset = VertexSet(vsrc)
 
     # vset = VertexSetRandom(10)
