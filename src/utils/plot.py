@@ -187,8 +187,8 @@ def plot_lines(
 
     if xticklabel is not None:
         plt.ticklabel_format(axis='x', style=xticklabel, scilimits=(0,0))
-    if yticklabel is not None:
-        plt.ticklabel_format(axis='y', style=yticklabel, scilimits=(0,0))
+    # if yticklabel is not None:
+    #     plt.ticklabel_format(axis='y', style=yticklabel, scilimits=(0,0))
     if xreverse:
         plt.gca().invert_xaxis()
     if yreverse:
