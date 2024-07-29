@@ -191,7 +191,7 @@ class Topology:
         for u, v, d in edges:
             if d['length'] > threshold:
                 if group == -1 or d['group'] == group:
-                    point_num = int(np.ceil(d['length'] / seg_len))
+                    point_num = int(d['length'] / seg_len)
                     self.segment_edge_line(u, v, point_num, group)
 
 
