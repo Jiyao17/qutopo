@@ -12,3 +12,7 @@ You may use requirements.txt to build your local environment, but it is not guar
 You can find scripts used by authors to generate the figures in the evaluation section of the paper in ./src/test/. Those scripts should give you exactly the same results as shown in the paper. To execute, run the files as python modules, such as  
 
 python -m src/test/efficiency
+
+
+# Miscellaneous
+Some figures in the paper was not kept due to mistakenly re-run the scripts and early stop, but most of them should be kept as is.
