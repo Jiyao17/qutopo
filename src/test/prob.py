@@ -232,7 +232,7 @@ def compare_efficiency(vsrc:VertexSource, params, repeat=1):
                 'Density', 'Objective', 'Time',  
                 y1_labels, y2_labels,
                 ['-', '-', '-', '-', '-'], ['--', '--', '--', '--', '--'],
-                # ['blue', 'green', 'red', 'orange', 'purple'], ['blue', 'green', 'red', 'orange', 'purple'],
+                ['blue', 'green', 'red', 'orange', 'purple'], ['blue', 'green', 'red', 'orange', 'purple'],
                 ['o', 's', '^', 'v', 'x'], ['o', 's', '^', 'v', 'x'],
                 xscale='linear', y1_scale='linear', y2_scale='log',
                 xreverse=False, y1_reverse=False, y2_reverse=False,
@@ -281,11 +281,11 @@ if __name__ == '__main__':
     gp.setParam('OutputFlag', 0)
 
     params = copy.deepcopy(HWParam)
-    # params['swap_prob'] = 0.5
+    params['swap_prob'] = 0.5
 
     # vsrcs = [VertexSource.EENET, VertexSource.NOEL, VertexSource.RENATOR]
     vsrcs = [VertexSource.RENATOR]
     for vsrc in vsrcs:
-        compare_efficiency(vsrc, params, repeat=1)
-        # load_plot_result(vsrc)
+        # compare_efficiency(vsrc, params, repeat=1)
+        load_plot_result(vsrc)
     

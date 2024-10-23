@@ -37,7 +37,6 @@ def complete_swap(costs: 'list[float]', swap_prob: float):
     
     return costs
 
-
 def relaxed_complete_swap(costs: 'list[float]', swap_prob: float):
     """
     conduct swaps as a  relaxed complete swapping tree
@@ -67,7 +66,6 @@ def relaxed_complete_swap(costs: 'list[float]', swap_prob: float):
     
     return costs
 
-
 def sequential_swap(costs: 'list[float]', swap_prob: float):
     """
     conduct swaps as a sequential binary tree
@@ -89,9 +87,13 @@ def get_edge_capacity(length: float, photon_rate: float, fiber_loss: float):
     # prob for half fiber (detectors are in the middle of edges)
     prob = 10 ** (-0.1 * fiber_loss * (length/2)) 
     channel_capacity = photon_rate * prob**2
+
+    # sided light sources and detectors
+    # prob = 10 ** (-0.1 * fiber_loss * length) 
+    # channel_capacity = photon_rate * prob
+
     
     return channel_capacity
-
 
 def get_edge_length(capacity: float, photon_rate: float, fiber_loss: float):
     """
@@ -106,17 +108,17 @@ def get_edge_length(capacity: float, photon_rate: float, fiber_loss: float):
 
 
 if __name__ == '__main__':
-    costs = [1,] * 13
-    swap_prob = 0.5
+    # costs = [1,] * 13
+    # swap_prob = 0.5
 
-    costs = complete_swap(costs, swap_prob)
-    print(costs)
-    costs = sequential_swap(costs, swap_prob)
-    print(costs)
-    costs = relaxed_complete_swap(costs, swap_prob)
-    print(costs)
+    # costs = complete_swap(costs, swap_prob)
+    # print(costs)
+    # costs = sequential_swap(costs, swap_prob)
+    # print(costs)
+    # costs = relaxed_complete_swap(costs, swap_prob)
+    # print(costs)
 
-    # cap = get_edge_capacity(100, 1e4, 0.2)
-    # print(cap)
-    # length = get_edge_length(100, 1e4, 0.2)
-    # print(length)
+    cap = get_edge_capacity(100, 1e4, 0.2)
+    print(cap)
+    length = get_edge_length(1, 1e4, 0.2)
+    print(length)
