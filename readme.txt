@@ -1,1 +1,0 @@
-This work investigate the topological design of quantum networks.
