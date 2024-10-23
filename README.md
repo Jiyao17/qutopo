@@ -1,6 +1,6 @@
 
 # Paper
-This repository is the implementation of the paper  
+This repository is the implementation of the SECON 2024 paper  
 **Topology Design with Resource Allocation and Entanglement Distribution for Quantum Networks**
 
 
@@ -9,6 +9,6 @@ You may use requirements.txt to build your local environment, but it is not guar
 
 
 # Run
-You can find scripts used by authors to generate the figures in the evaluation section of the paper in ./src/test/. To execute, run the files as python modules, such as  
+You can find scripts used by authors to generate the figures in the evaluation section of the paper in ./src/test/. Those scripts should give you exactly the same results as shown in the paper. To execute, run the files as python modules, such as  
 
-python -m ./src/test/efficiency
+python -m src/test/efficiency
