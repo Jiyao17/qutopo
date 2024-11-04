@@ -107,23 +107,26 @@ def compare_segmentation_lengths(params, repeat=1):
         y1_labels = ['Objective',]
         y2_labels = ['Time',]
 
-        y1_stypes = ['-',] * len(y1_labels)
-        y2_stypes = ['--',] * len(y2_labels)
-        y1_colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
-        y2_colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
+        y1_styles = ['-',] * len(y1_labels)
+        y2_styles = ['--',] * len(y2_labels)
+        # y1_colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
+        # y2_colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
         y1_markers = ['o', 's', '^', 'v', 'x', '+']
-        y2_markers = ['o', 's', '^', 'v', 'x', '+']
+        y2_markers = ['s', '^', 'v', 'x', '+']
         plot_2y_lines(
             seg_lens, ys1, ys2,
             'Segmentation Length', 'Objective', 'Time', 
             y1_labels, y2_labels,
-            y1_stypes, y2_stypes,
-            y1_colors, y2_colors,
-            y1_markers, y2_markers,
+            y1_styles, y2_styles,
+            # y1_colors, y2_colors,
+            y1_markers=y1_markers, y2_markers=y2_markers,
             xscale='linear', y1_scale='linear', y2_scale='log',
+            y1_tickstyle='sci', 
             xreverse=False, y1_reverse=False, y2_reverse=False,
             xlim=None, y1_lim=None, y2_lim=None,
-            filename='segmentation.png'
+            # file folder is originally the project root
+            #  it is changed to result/segment for clarity without test
+            filename='./result/segment/segmentation.png'
         )
 
 if __name__ == '__main__':
@@ -134,4 +137,4 @@ if __name__ == '__main__':
 
     params = copy.deepcopy(HWParam)
     params['swap_prob'] = 0.75
-    compare_segmentation_lengths(params, repeat=3)
+    compare_segmentation_lengths(params, repeat=10)

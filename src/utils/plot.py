@@ -109,6 +109,7 @@ def plot_nx_graph(
 def plot_simple_topology(
         graph: nx.Graph,
         Im=None, Ic=None,
+        users=None,
         filename: str='./result/fig.png'
         ):
     """
@@ -122,27 +123,41 @@ def plot_simple_topology(
     #     if not 0 < lat < 90 or not -180 < lon < 180:
     #         raise ValueError(f'Invalid latitude and longitude: {lat}, {lon}')
     pos = {node: (lon, lat) for node, (lat, lon) in pos.items()}
-    node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'green' for node in graph.nodes]
+    # node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'green' for node in graph.nodes(data=False)]
     # node_colors = ['blue' for node in graph.nodes]
     node_sizes = [ 200 if graph.nodes[node]['group'] == 0 else 50 for node in graph.nodes]
 
 
     if Im is None:
-        Im = {node: 1 for node in graph.nodes}
+        Im = {node: 1 for node in graph.nodes(data=False)}
     if Ic is None:
-        Ic = {edge: 1 for edge in graph.edges}
+        Ic = {edge: 1 for edge in graph.edges(data=False)}
+    if users is None:
+        users = graph.nodes(data=False)
 
     # node_colors = ['blue' if graph.nodes[node]['group'] == 0 else 'red' for node in graph.nodes]
-    node_colors = ['blue' if Im[node] == 1 else 'red' for node in Im]
+    # node_colors = ['blue' if Im[node] == 1 else 'red' for node in Im.keys()]
+    # for user in users:
+    #     node_colors[user] = 'green'
+
+    # remove unused nodes
+    empty_nodes = [ node for node in Im.keys() if Im[node] == 0]
+    graph.remove_nodes_from(empty_nodes)
+    # node_colors = [color for node, color in zip(graph.nodes, node_colors)]
+    # node_sizes = [size for node, size in zip(graph.nodes, node_sizes)]
     # remove all edges
     graph.remove_edges_from(list(graph.edges))
     # add edges with channel utilization
     for edge in Ic:
         u, v = edge
-        graph.add_edge(u, v, weight=Ic[edge])
+        if Ic[edge] > 0:
+            graph.add_edge(u, v, length=Ic[edge])
 
+    node_sizes = [ 200 if graph.nodes[node]['group'] == 0 else 50 for node in graph.nodes]
+    node_colors = ['green' if size == 200 else 'blue' for size in node_sizes]
     nx.draw(graph, pos, with_labels=False, 
-        node_color=node_colors, node_size=node_sizes,
+        node_color=node_colors, 
+        node_size=node_sizes,
         edge_color='grey', width=1, edge_cmap=plt.cm.Blues
     )
 
@@ -156,6 +171,7 @@ def plot_lines(
     xlabel, ylabel,
     labels, 
     colors=None, 
+    markers=None,
     adjust=(0.2, 0.2, 0.95, 0.95),
     xscale='linear', yscale='linear',
     xticklabel=None, yticklabel=None,
@@ -170,15 +186,18 @@ def plot_lines(
     if colors is None:
         # get matpliotlib default color cycle
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    if markers is None:
+        markers = ['o', 's', '^', 'v', 'x', '+', 'd', 'p', 'h']
     
-    for y, label, color, in zip(ys, labels, colors):
+    for y, label, color, marker in zip(ys, labels, colors, markers):
         # find first y > ylim[1]
         if ylim is not None:
             idx = np.where(y > ylim[1])[0]
             if len(idx) > 0:
                 y = y[:idx[0]]
                 x = x[:idx[0]]
-        plt.plot(x, y, label=label, color=color,)
+        # hollow markers
+        plt.plot(x, y, label=label, color=color, marker=marker, markerfacecolor='none', markersize=10)
 
     plt.xlabel(xlabel, fontsize=20)
     plt.ylabel(ylabel, fontsize=20)
@@ -211,9 +230,10 @@ def plot_2y_lines(
     xlabel, y1_label, y2_label,
     y1_labels, y2_labels,
     y1_styles, y2_styles,
-    y1_colors, y2_colors,
     y1_markers, y2_markers,
+    y1_colors=None, y2_colors=None,
     xscale='linear', y1_scale='linear', y2_scale='linear',
+    x_tickstyle=None, y1_tickstyle=None, y2_tickstyle=None,
     xreverse=False, y1_reverse=False, y2_reverse=False,
     xlim=None, y1_lim=None, y2_lim=None,
     filename='pic.png',
@@ -221,6 +241,10 @@ def plot_2y_lines(
     """
     two y-axis in one figure
     """
+    if y1_colors is None:
+        y1_colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    if y2_colors is None:
+        y2_colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     if y1_labels is None:
         y1_labels = ['' for _ in ys1]
     if y2_labels is None:
@@ -266,6 +290,13 @@ def plot_2y_lines(
     ax1.set_xscale(xscale)
     ax1.set_yscale(y1_scale)
     ax2.set_yscale(y2_scale)
+    # set x ticklabel format
+    if x_tickstyle is not None:
+        ax1.ticklabel_format(axis='x', style=x_tickstyle, scilimits=(0,0))
+    if y1_tickstyle is not None:
+        ax1.ticklabel_format(axis='y', style=y1_tickstyle, scilimits=(0,0))
+    if y2_tickstyle is not None:
+        ax2.ticklabel_format(axis='y', style=y2_tickstyle, scilimits=(0,0))
     if xreverse:
         ax1.invert_xaxis()
     if y1_reverse:

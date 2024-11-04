@@ -47,7 +47,7 @@ def run_path_solver(
     
     return total_time, times, objs, Im, Ic
 
-def compare_demand_intensity(params, repeat=1):
+def compare_dense_topology(params, repeat=1):
     """
     This set of evaluations compares different network scales
     """
@@ -55,18 +55,22 @@ def compare_demand_intensity(params, repeat=1):
     # random.seed(seed)
     # np.random.seed(seed)
     
-    density = 5
+    densities = [2, 4, 6, 8, 10]
+    demand = 10
     k = 100
-    fracs = [0.1, 0.5, 1]
-    names = ['LOW', 'MEDIUM', 'HIGH']
-    demands = [ 1, 10, 100,]
     seg_len = 150
 
-    opt_path_objs = np.zeros((len(demands), repeat)) * np.nan
-    opt_path_times = np.zeros((len(demands), repeat)) * np.nan
+    opt_path_objs = np.zeros((len(densities), repeat)) * np.nan
+    opt_path_times = np.zeros((len(densities), repeat)) * np.nan
 
-    for i, demand, frac in zip(range(len(demands)), demands, fracs):
-        print(f"demand {demand}")
+    vsrc = VertexSource.NOEL
+    vset = VertexSet(vsrc)
+    task = Task(vset, 0.5, (demand, demand+1))
+    raw_net = Topology(task=task, hw_params=params)
+
+
+    for i, density in enumerate(densities):
+        print(f"demand {density}")
     
         pool = mp.Pool(repeat)
         results = []
@@ -74,11 +78,7 @@ def compare_demand_intensity(params, repeat=1):
         for j in range(repeat):
             print(f"repeat {j}")
 
-            vsrc = VertexSource.NOEL
-            vset = VertexSet(vsrc)
-            task = Task(vset, frac, (demand, demand+1))
-            net = Topology(task=task, hw_params=params)
-
+            net = copy.deepcopy(raw_net)
             net.connect_nodes_nearest(density)
             # make sure the network is connected
             net.connect_nearest_component()
@@ -99,40 +99,40 @@ def compare_demand_intensity(params, repeat=1):
                 opt_path_times[i, j] = total_time
 
         # average the results
-        avg_opt_path_objs = np.nanmean(opt_path_objs, axis=1)
-        avg_opt_path_times = np.nanmean(opt_path_times, axis=1)
+        # avg_opt_path_objs = np.nanmean(opt_path_objs, axis=1)
+        # avg_opt_path_times = np.nanmean(opt_path_times, axis=1)
 
         # prepare for plotting
-        ys1 = [avg_opt_path_objs,]
-        ys2 = [avg_opt_path_times,]
-        y1_labels = ['Objective',]
-        y2_labels = ['Time',]
+        # ys1 = [avg_opt_path_objs,]
+        # ys2 = [avg_opt_path_times,]
+        # y1_labels = ['Objective',]
+        # y2_labels = ['Time',]
 
-        y1_stypes = ['-',] * len(y1_labels)
-        y2_stypes = ['--',] * len(y2_labels)
-        y1_colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
-        y2_colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
-        y1_markers = ['o', 's', '^', 'v', 'x', '+']
-        y2_markers = ['o', 's', '^', 'v', 'x', '+']
-        plot_2y_lines(
-            demands, ys1, ys2,
-            'Demands', 'Objective', 'Time', 
-            y1_labels, y2_labels,
-            y1_stypes, y2_stypes,
-            y1_colors, y2_colors,
-            y1_markers, y2_markers,
-            xscale='log', y1_scale='log', y2_scale='log',
-            xreverse=False, y1_reverse=False, y2_reverse=False,
-            xlim=None, y1_lim=None, y2_lim=None,
-            filename='demand.png'
-        )
+        # y1_stypes = ['-',] * len(y1_labels)
+        # y2_stypes = ['--',] * len(y2_labels)
+        # y1_colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
+        # y2_colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
+        # y1_markers = ['o', 's', '^', 'v', 'x', '+']
+        # y2_markers = ['o', 's', '^', 'v', 'x', '+']
+        # plot_2y_lines(
+        #     densities, ys1, ys2,
+        #     'Demands', 'Objective', 'Time', 
+        #     y1_labels, y2_labels,
+        #     y1_stypes, y2_stypes,
+        #     y1_colors, y2_colors,
+        #     y1_markers, y2_markers,
+        #     xscale='log', y1_scale='log', y2_scale='log',
+        #     xreverse=False, y1_reverse=False, y2_reverse=False,
+        #     xlim=None, y1_lim=None, y2_lim=None,
+        #     filename='demand.png'
+        # )
 
         users = set()
         for pair, demand in task.D.items():
             if demand > 0:
                 users.add(pair[0])
                 users.add(pair[1])
-        plot_simple_topology(net.graph, Im, Ic, users, filename=f'./result/demand/topology_{names[i]}.png')
+        plot_simple_topology(net.graph, Im, Ic, users, filename=f'./result/topo/topology_density={density}.png')
 
 if __name__ == '__main__':
     # set gurobi environment
@@ -141,4 +141,4 @@ if __name__ == '__main__':
     gp.setParam('OutputFlag', 0)
 
     params = copy.deepcopy(HWParam)
-    compare_demand_intensity(params, repeat=1)
+    compare_dense_topology(params, repeat=1)

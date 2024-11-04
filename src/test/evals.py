@@ -206,23 +206,6 @@ def compare_efficiency(params, repeat=1):
         filename='efficiency.png'
     )
 
-def segmentation_length_comparison(network, data):
-    """
-    This set of evaluations compares test segmentation length of
-        -100
-        -150
-        -200
-    """
-    pass
-
-def price_ratio_comparison(network, data):
-    pass
-
-def network_scale_comparison(network, data):
-    pass
-
-def demand_intensity_comparison(network, data):
-    pass
 
 if __name__ == '__main__':
     # set gurobi environment

@@ -109,8 +109,13 @@ def compare_price_ratio(params, repeat=1):
                 edge_budgets[i, j] = edge_budget
 
         # use last solution for network topology
-        plot_simple_topology(net.graph, filename='./result/ratio/topology_original.png')
-        plot_simple_topology(net.graph, Im, Ic, filename=f'./result/ratio/topology_{ratio}.png')
+        # plot_simple_topology(net.graph, filename='./result/ratio/topology_original.png')
+        users = set()
+        for pair, demand in net.task.D.items():
+            if demand > 0:
+                users.add(pair[0])
+                users.add(pair[1])
+        plot_simple_topology(net.graph, Im, Ic, users, filename=f'./result/ratio/topology_{ratio}.png')
 
         # # average the results
         # avg_node_budgets = np.nanmean(node_budgets, axis=1)
