@@ -3,6 +3,8 @@
 This repository is the implementation of the SECON 2024 paper  
 **Topology Design with Resource Allocation and Entanglement Distribution for Quantum Networks**
 
+Updating code for an extended version.
+
 
 # Warning
 The code may not run as it has been modified since the submission of the paper and may still be modified for future works. At the camera ready time (Oct 23 2024), the scripts still work.
