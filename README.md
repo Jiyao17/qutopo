@@ -1,17 +1,15 @@
 
 # Paper
-This repository is the implementation of the SECON 2024 paper  
+This repository is the implementation of our SECON 2024 paper  
 **Topology Design with Resource Allocation and Entanglement Distribution for Quantum Networks**
 
-Updating code for an extended version.
 
-
-# Warning
-The code may not run as it has been modified since the submission of the paper and may still be modified for future works. At the camera ready time (Oct 23 2024), the scripts still work.
+# Guidelines
+The code may not runnable as it has been modified since the submission of the paper and may still be modified for future works. At the camera ready time (Oct 23 2024), the scripts still work and you may refer to the version commited at that time for cnsistency with the results in our paper. If you hope to compare with our method, you may directly use the core functions (e.g., those solve given paths), rather than running the whole set of optimization.
 
 
 # Build
-You may use requirements.txt to build your local environment, but it is not guaranteed to work as the python used by authors installs may unused packages and was used to test other projects. You may creat your own environment by installing main packages to a clean python, such as numpy, networkx, gurobipy (gurobi license required), pygeo, etc.
+You may use requirements.txt to build your local environment, but it is not guaranteed to work as is because some libraries requires licenses (e.g., Gurobi). 
 
 
 # Run
